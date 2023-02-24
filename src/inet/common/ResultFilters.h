@@ -394,6 +394,23 @@ class INET_API UtilizationFilter : public cNumericResultFilter
     virtual void finish(cComponent *component, simsignal_t signalID) override;
 };
 
+class INET_API MovingAverageFilter : public cNumericResultFilter
+{
+  protected:
+    bool firstCall = true;
+    double lastValue = -1;
+    //simtime_t intervalTarget = SimTime(1000, SIMTIME_MS);
+    int sampleSize = 200 * 2;
+    simtime_t intervalLength = 0;
+    simtime_t warmupTime = getSimulation()->getWarmupPeriod();
+    simtime_t lastSignalTime = warmupTime;
+    std::vector<simtime_t> intervalTimes;
+    std::vector<double> intervalValues;
+
+  protected:
+    virtual bool process(simtime_t& t, double& value, cObject *details) override;
+};
+
 /**
  * Filter that expects a Packet or a packet length and outputs the throughput as double.
  * Throughput is computed for the *past* interval every 0.1s or 100 packets,

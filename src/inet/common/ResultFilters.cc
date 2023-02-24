@@ -347,6 +347,45 @@ void UtilizationFilter::finish(cComponent *component, simsignal_t signal)
     }
 }
 
+Register_ResultFilter("movingAverage", MovingAverageFilter);
+
+bool MovingAverageFilter::process(simtime_t& t, double& value, cObject *details)
+{
+    if (firstCall){
+        lastValue = value;
+        lastSignalTime = t;
+        firstCall = false;
+        return false;
+    }
+
+    if (intervalValues.size() == sampleSize) {
+        intervalLength = intervalLength - intervalTimes.front();
+        intervalTimes.erase(intervalTimes.begin());
+        intervalValues.erase(intervalValues.begin());
+    }
+
+    simtime_t timeSinceLastSignal = t - lastSignalTime; // correct
+    intervalTimes.push_back(timeSinceLastSignal); // correct
+    intervalValues.push_back(lastValue); // correct
+    lastSignalTime = t; // correct
+    lastValue = value;
+    intervalLength += timeSinceLastSignal;
+
+    if (intervalValues.size() >= sampleSize){
+        double returnValue = 0;
+        for (int i = 0; i < intervalTimes.size(); i++){
+        returnValue += intervalValues[i] * SIMTIME_DBL(intervalTimes[i]);
+        }
+
+        returnValue /= SIMTIME_DBL(intervalLength);
+        value = returnValue;
+        return true;
+    }
+    else{
+        return false;
+    }
+}
+
 Register_ResultFilter("maxPerGroup", MaxPerGroupFilter);
 
 void MaxPerGroupFilter::receiveSignal(cResultFilter *prev, simtime_t_cref t, cObject *object, cObject *details)
