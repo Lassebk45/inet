@@ -45,12 +45,12 @@ void LibTable::handleMessage(cMessage *)
 bool LibTable::isInterfaceUp(const std::string& ifname){
     const cModule* router = this->getParentModule();
     const InterfaceTable* ift = (InterfaceTable*)CHK(router->getModuleByPath(".interfaceTable"));
-    DEBUG("INTERFACE TABLE - # interfaces: " << ift->getNumInterfaces())
+    EV_DEBUG << "INTERFACE TABLE - # interfaces: " << ift->getNumInterfaces() << endl;
     int nr_interfaces = ift->getNumInterfaces();
     for( int i = 0; i < nr_interfaces; ++i ){
         const NetworkInterface* interface = ift->getInterface(i);
-        std::cout << "Name: " << interface->getInterfaceName() << " ";
-        std::cout << interface->getInterfaceId() << " status = " << interface->isUp() << std::endl;
+        EV_DEBUG << "Name: " << interface->getInterfaceName() << " ";
+        EV_DEBUG << interface->getInterfaceId() << " status = " << interface->isUp() << endl;
         if( !strcmp(interface->getInterfaceName(), ifname.c_str() ) ){
             return interface->isUp();
         }
@@ -67,7 +67,7 @@ bool LibTable::isInterfaceUp(const std::string& ifname){
 bool LibTable::resolveLabel(std::string inInterface, int inLabel,
         LabelOpVector& outLabel, std::string& outInterface, int& color)
 {
-    std::cerr << "In resolve label ... inInterface: " << inInterface << std::endl;
+    EV_ERROR << "In resolve label ... inInterface: " << inInterface << endl;
 
     bool any = (inInterface.length() == 0);
     any = true; // TODO: fix
@@ -80,13 +80,14 @@ bool LibTable::resolveLabel(std::string inInterface, int inLabel,
         if (elem.inLabel != inLabel)
             continue;
 
-        std::cerr << "Resolving label from " << std::to_string(inLabel) << " to \n";
+        EV_DEBUG << "Resolving label from " << std::to_string(inLabel) << " to " << endl;
         for(const auto& fwe : elem.entries){
-            std::cerr << "- Entry with\n";
-            std::cerr << "  out_if:   " << fwe.outInterface << "\n";
-            std::cerr << "  priority: " << fwe.priority << "\n";
+            EV_ERROR << "- Entry with" << endl;
+            EV_ERROR << "TEST" << endl;
+            EV_ERROR << "  out_if:   " << fwe.outInterface << endl;
+            EV_ERROR << "  priority: " << fwe.priority << endl;
             for( const auto& e : fwe.outLabel)
-                std::cerr << "   * " << std::to_string(e.optcode) << " "<< std::to_string(e.label) << "\n";
+                EV_ERROR << "   * " << std::to_string(e.optcode) << " "<< std::to_string(e.label) << endl;
         }
 
         // Filter interfaces to get only those that are up.
@@ -120,7 +121,7 @@ bool LibTable::resolveLabel(std::string inInterface, int inLabel,
 
         outLabel = it->outLabel;
         outInterface = it->outInterface;
-        std::cerr << "Using ("<<outLabel <<","<<outInterface<<")"<<std::endl;
+        EV_ERROR << "Using ("<<outLabel <<","<<outInterface<<")"<< endl;
 
         color = elem.color;
 

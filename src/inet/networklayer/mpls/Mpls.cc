@@ -64,7 +64,7 @@ void Mpls::processPacketFromL3(Packet *msg)
 {
     using namespace tcp;
 
-    DEBUG(ROUTER_STR(msg));
+    EV_DEBUG << ROUTER_STR(msg) << endl;
     print_packet_tags(msg);
 
     const Protocol *protocol = msg->getTag<PacketProtocolTag>()->getProtocol();
@@ -102,15 +102,15 @@ bool Mpls::tryLabelAndForwardIpv4Datagram(Packet *packet)
     std::string outInterface; // FIXME set based on interfaceID
     int color;
 
-    DEBUG(ROUTER_STR(packet));
+    EV_DEBUG << ROUTER_STR(packet) << endl;
 
     if (!pct->lookupLabel(packet, outLabel, outInterface, color)) {
         EV_WARN << "no mapping exists for this packet" << endl;
-        DEBUG(ROUTER_STR(packet) << "in if. No mapping exists for this packet, return false.");
+        EV_DEBUG << ROUTER_STR(packet) << "in if. No mapping exists for this packet, return false." << endl;
         return false;
     }
     int outInterfaceId = CHK(ift->findInterfaceByName(outInterface.c_str()))->getInterfaceId();
-    DEBUG(ROUTER_STR(packet) << "not in if.");
+    EV_DEBUG << ROUTER_STR(packet) << "not in if." << endl;
 
     ASSERT(outLabel.size() > 0);
 
@@ -132,12 +132,12 @@ bool Mpls::tryLabelAndForwardIpv4Datagram(Packet *packet)
 void Mpls::labelAndForwardIpv4Datagram(Packet *ipdatagram)
 {
 
-    DEBUG(ROUTER_STR(ipdatagram) << "before if");
+    EV_DEBUG << ROUTER_STR(ipdatagram) << "before if" << endl;
 
     if (tryLabelAndForwardIpv4Datagram(ipdatagram))
         return;
 
-    DEBUG(ROUTER_STR(ipdatagram) << "after if");
+    EV_DEBUG << ROUTER_STR(ipdatagram) << "after if" << endl;
 
     // handling our outgoing Ipv4 traffic that didn't match any FEC/LSP
     // do not use labelAndForwardIPv4Datagram for packets arriving to ingress!
@@ -206,7 +206,7 @@ void Mpls::doStackOps(Packet *packet, const LabelOpVector& outLabel)
 
 void Mpls::processPacketFromL2(Packet *packet)
 {
-    DEBUG(ROUTER_STR(packet));
+    EV_DEBUG << ROUTER_STR(packet) << endl;
 
     int protocolId = packet->getTag<PacketProtocolTag>()->getProtocol()->getId();
     if (protocolId == Protocol::mpls.getId()) {
@@ -234,7 +234,7 @@ void Mpls::processMplsPacketFromL2(Packet *packet)
     std::string incomingInterfaceName = ie->getInterfaceName();
     const auto& mplsHeader = packet->peekAtFront<MplsHeader>();
 
-    DEBUG(ROUTER_STR(packet));
+    EV_DEBUG << ROUTER_STR(packet) << endl;
 
     EV_INFO << "Received " << packet << " from L2, label=" << mplsHeader->getLabel() << " inInterface=" << incomingInterfaceName << endl;
 
@@ -301,11 +301,11 @@ void Mpls::processMplsPacketFromL2(Packet *packet)
 
 void Mpls::sendToL2(Packet *msg)
 {
-    DEBUG(ROUTER_STR(msg));
+    EV_DEBUG << ROUTER_STR(msg) << endl;
     ASSERT(msg->findTag<InterfaceReq>());
     ASSERT(msg->findTag<PacketProtocolTag>());
 
-    DEBUG(ROUTER_STR(msg) << msg);
+    EV_DEBUG << ROUTER_STR(msg) << msg << endl;
     print_packet_tags(msg);
 
     send(msg, "lowerLayerOut");
@@ -313,14 +313,14 @@ void Mpls::sendToL2(Packet *msg)
 
 
 int Mpls::getFirstUpNonloopbackInterface(){
-    DEBUG("INTERFACE TABLE - # interfaces: " << ift->getNumInterfaces())
+    EV_DEBUG << "INTERFACE TABLE - # interfaces: " << ift->getNumInterfaces() << endl;
     int nr_interfaces = ift->getNumInterfaces();
     for( int i = 0; i < nr_interfaces; ++i ){
         const NetworkInterface* interface = ift->getInterface(i);
         if( interface->isDown() || interface->isLoopback() )
             continue;
-        std::cout << "Name: " << interface->getInterfaceName() << " ";
-        std::cout << interface->getInterfaceId() << " status = " << interface->isUp() << std::endl;
+        EV_DEBUG << "Name: " << interface->getInterfaceName() << endl;
+        EV_DEBUG << interface->getInterfaceId() << " status = " << interface->isUp() << endl;
         return interface->getInterfaceId();
     }
 
@@ -331,14 +331,14 @@ int Mpls::getFirstUpNonloopbackInterface(){
 
 void Mpls::sendToL3(Packet *msg)
 {
-    DEBUG(ROUTER_STR(msg));
+    EV_DEBUG <<ROUTER_STR(msg) << endl;
     ASSERT(msg->findTag<InterfaceInd>());
     ASSERT(msg->findTag<DispatchProtocolReq>());
 
 
     if( msg->getTag<PacketProtocolTag>()->getProtocol()->getId() == Protocol::ipv4.getId()){
         const auto& ipv4Header = msg->peekAtFront<Ipv4Header>();
-        DEBUG(ROUTER_STR(msg) << "Destination: " << *ipv4Header);
+        EV_DEBUG << ROUTER_STR(msg) << "Destination: " << *ipv4Header << endl;
 
         // TODO: Why does it work to set the InterfaceInd to any other interface that is NOT a loopback interface
         // before sending it to the IP layer?
@@ -347,7 +347,7 @@ void Mpls::sendToL3(Packet *msg)
             msg->removeTagIfPresent<InterfaceInd>();
             int interfaceId = getFirstUpNonloopbackInterface();
             msg->addTagIfAbsent<InterfaceInd>()->setInterfaceId(interfaceId);
-            DEBUG(ROUTER_STR(msg) << "Replacing loopback 101 by " << interfaceId << ". NOTE: BUGGY!");
+            EV_DEBUG << ROUTER_STR(msg) << "Replacing loopback 101 by " << interfaceId << ". NOTE: BUGGY!" << endl;
         }
     }
 
