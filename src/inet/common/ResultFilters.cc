@@ -358,7 +358,7 @@ bool MovingAverageFilter::process(simtime_t& t, double& value, cObject *details)
         return false;
     }
 
-    if (intervalValues.size() == sampleSize) {
+    if (intervalLength >= intervalSampleSize) {
         intervalLength = intervalLength - intervalTimes.front();
         intervalTimes.erase(intervalTimes.begin());
         intervalValues.erase(intervalValues.begin());
@@ -371,7 +371,7 @@ bool MovingAverageFilter::process(simtime_t& t, double& value, cObject *details)
     lastValue = value;
     intervalLength += timeSinceLastSignal;
 
-    if (intervalValues.size() >= sampleSize){
+    if (intervalLength >= intervalSampleSize){
         double returnValue = 0;
         for (int i = 0; i < intervalTimes.size(); i++){
         returnValue += intervalValues[i] * SIMTIME_DBL(intervalTimes[i]);

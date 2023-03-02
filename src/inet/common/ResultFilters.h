@@ -399,8 +399,7 @@ class INET_API MovingAverageFilter : public cNumericResultFilter
   protected:
     bool firstCall = true;
     double lastValue = -1;
-    //simtime_t intervalTarget = SimTime(1000, SIMTIME_MS);
-    int sampleSize = 250 * 2;
+    simtime_t intervalSampleSize = SimTime(5000, SIMTIME_MS);
     simtime_t intervalLength = 0;
     simtime_t warmupTime = getSimulation()->getWarmupPeriod();
     simtime_t lastSignalTime = warmupTime;
