@@ -9,6 +9,7 @@
 #define __INET_RESULTFILTERS_H
 
 #include "inet/common/INETMath.h"
+#include <queue>
 
 namespace inet {
 
@@ -403,8 +404,9 @@ class INET_API MovingAverageFilter : public cNumericResultFilter
     simtime_t intervalLength = 0;
     simtime_t warmupTime = getSimulation()->getWarmupPeriod();
     simtime_t lastSignalTime = warmupTime;
-    std::vector<simtime_t> intervalTimes;
-    std::vector<double> intervalValues;
+    std::queue<simtime_t> intervalTimes;
+    std::queue<double> intervalValues;
+    double returnValue = 0;
 
   protected:
     virtual bool process(simtime_t& t, double& value, cObject *details) override;
