@@ -114,6 +114,7 @@ void UdpBasicApp::sendPacket()
     packet->insertAtBack(payload);
     L3Address destAddr = chooseDestAddr();
     emit(packetSentSignal, packet);
+    emit(packetSentUDPSignal, packet);
     socket.sendTo(packet, destAddr, destPort);
     numSent++;
 }
