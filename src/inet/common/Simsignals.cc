@@ -84,6 +84,7 @@ simsignal_t packetAddedSignal = cComponent::registerSignal("packetAdded");
 simsignal_t packetRemovedSignal = cComponent::registerSignal("packetRemoved");
 simsignal_t packetDroppedSignal = cComponent::registerSignal("packetDropped");
 simsignal_t packetSentUDPSignal = cComponent::registerSignal("packetSentUDP");
+simsignal_t packetReceivedUDPSignal = cComponent::registerSignal("packetReceivedUDP");
 
 
 simsignal_t packetSentToUpperSignal = cComponent::registerSignal("packetSentToUpper");

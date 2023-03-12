@@ -89,6 +89,7 @@ extern INET_API simsignal_t // admin
 
 // general
     packetSentUDPSignal,
+    packetReceivedUDPSignal,
     packetCreatedSignal,
     packetAddedSignal,
     packetRemovedSignal,
