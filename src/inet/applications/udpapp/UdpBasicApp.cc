@@ -225,6 +225,7 @@ void UdpBasicApp::refreshDisplay() const
 void UdpBasicApp::processPacket(Packet *pk)
 {
     emit(packetReceivedSignal, pk);
+    emit(packetReceivedUDPSignal, pk);
     EV_INFO << "Received packet: " << UdpSocket::getReceivedPacketInfo(pk) << endl;
     delete pk;
     numReceived++;

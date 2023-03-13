@@ -101,6 +101,7 @@ void UdpSocketIo::setSocketOptions()
 void UdpSocketIo::socketDataArrived(UdpSocket *socket, Packet *packet)
 {
     emit(packetReceivedSignal, packet);
+    emit(packetReceivedUDPSignal, packet);
     EV_INFO << "Received packet: " << UdpSocket::getReceivedPacketInfo(packet) << endl;
     numReceived++;
     packet->removeTag<SocketInd>();
