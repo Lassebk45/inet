@@ -347,9 +347,9 @@ void UtilizationFilter::finish(cComponent *component, simsignal_t signal)
     }
 }
 
-Register_ResultFilter("movingAverage", MovingAverageFilter);
+Register_ResultFilter("utilizationMovingAverage", UtilizationMovingAverageFilter);
 
-bool MovingAverageFilter::process(simtime_t& t, double& value, cObject *details)
+bool UtilizationMovingAverageFilter::process(simtime_t& t, double& value, cObject *details)
 {
     if (firstCall){
         lastValue = value;
@@ -864,6 +864,66 @@ void LiveThroughputFilter::finish(cComponent *component, simsignal_t signalID)
         double throughput = totalLength / (now - lastSignal).dbl();
         fire(this, now, throughput, nullptr);
     }
+}
+
+Register_ResultFilter("emitsPerDuration", EmitsPerDurationFilter);
+
+void EmitsPerDurationFilter::updateValues(simtime_t_cref t) {
+    simtime_t timeSinceSignal = t - lastSignalTime;
+    intervalTimesSum += timeSinceSignal;
+    intervalTimes.push(timeSinceSignal);
+    signals+=1;
+    while(intervalTimesSum > duration){
+        simtime_t first = intervalTimes.front();
+        intervalTimes.pop();
+        intervalTimesSum -= first;
+        signals-=1;
+    }
+    simtime_t now = simTime();
+    lastSignalTime = t;
+
+}
+
+void EmitsPerDurationFilter::receiveSignal(cResultFilter *prev, simtime_t_cref t, bool b, cObject *details)
+{
+    updateValues(t);
+    fire(this, t, signals, details);
+}
+
+void EmitsPerDurationFilter::receiveSignal(cResultFilter *prev, simtime_t_cref t, intval_t l, cObject *details)
+{
+    updateValues(t);
+    fire(this, t, signals, details);
+}
+
+void EmitsPerDurationFilter::receiveSignal(cResultFilter *prev, simtime_t_cref t, uintval_t l, cObject *details)
+{
+    updateValues(t);
+    fire(this, t, signals, details);
+}
+
+void EmitsPerDurationFilter::receiveSignal(cResultFilter *prev, simtime_t_cref t, double d, cObject *details)
+{
+    updateValues(t);
+    fire(this, t, signals, details);
+}
+
+void EmitsPerDurationFilter::receiveSignal(cResultFilter *prev, simtime_t_cref t, const SimTime& v, cObject *details)
+{
+    updateValues(t);
+    fire(this, t, signals, details);
+}
+
+void EmitsPerDurationFilter::receiveSignal(cResultFilter *prev, simtime_t_cref t, const char *s, cObject *details)
+{
+    updateValues(t);
+    fire(this, t, signals, details);
+}
+
+void EmitsPerDurationFilter::receiveSignal(cResultFilter *prev, simtime_t_cref t, cObject *obj, cObject *details)
+{
+    updateValues(t);
+    fire(this, t, signals, details);
 }
 
 Register_ResultFilter("elapsedTime", ElapsedTimeFilter);

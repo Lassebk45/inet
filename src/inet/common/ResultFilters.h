@@ -395,12 +395,13 @@ class INET_API UtilizationFilter : public cNumericResultFilter
     virtual void finish(cComponent *component, simsignal_t signalID) override;
 };
 
-class INET_API MovingAverageFilter : public cNumericResultFilter
+class INET_API UtilizationMovingAverageFilter : public cNumericResultFilter
 {
   protected:
     bool firstCall = true;
     double lastValue = -1;
-    simtime_t intervalSampleSize = SimTime(5000, SIMTIME_MS);
+    int durMS = getSimulation()->getSystemModule()->par("recordingSampleDuration").intValue();
+    simtime_t intervalSampleSize = SimTime(durMS, SIMTIME_MS);
     simtime_t intervalLength = 0;
     simtime_t warmupTime = getSimulation()->getWarmupPeriod();
     simtime_t lastSignalTime = warmupTime;
@@ -568,6 +569,26 @@ class INET_API LocalSignalFilter : public cObjectResultFilter
     virtual void receiveSignal(cComponent *source, simsignal_t signal, const char *s, cObject *details) override;
     virtual void receiveSignal(cComponent *source, simsignal_t signal, cObject *object, cObject *details) override;
 };
+class INET_API EmitsPerDurationFilter : public cObjectResultFilter {
+    protected:
+        int durMS = getSimulation()->getSystemModule()->par("recordingSampleDuration").intValue();
+        intval_t signals = 0;
+        simtime_t duration = SimTime(durMS, SIMTIME_MS);
+        simtime_t lastSignalTime = getSimulation()->getWarmupPeriod();
+        std::queue<simtime_t> intervalTimes;
+        simtime_t intervalTimesSum = SIMTIME_ZERO;
+    public:
+        virtual void receiveSignal(cResultFilter *prev, simtime_t_cref t, bool b, cObject *details) override;
+        virtual void receiveSignal(cResultFilter *prev, simtime_t_cref t, intval_t, cObject *details) override;
+        virtual void receiveSignal(cResultFilter *prev, simtime_t_cref t, uintval_t, cObject *details) override;
+        virtual void receiveSignal(cResultFilter *prev, simtime_t_cref t, double d, cObject *details) override;
+        virtual void receiveSignal(cResultFilter *prev, simtime_t_cref t, const SimTime& v, cObject *details) override;
+        virtual void receiveSignal(cResultFilter *prev, simtime_t_cref t, const char *s, cObject *details) override;
+        virtual void receiveSignal(cResultFilter *prev, simtime_t_cref t, cObject *obj, cObject *details) override;
+        void updateValues(simtime_t_cref t);
+};
+
+
 
 } // namespace filters
 
