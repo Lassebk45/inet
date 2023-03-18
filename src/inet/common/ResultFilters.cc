@@ -375,7 +375,7 @@ bool UtilizationMovingAverageFilter::process(simtime_t& t, double& value, cObjec
     lastValue = value;
     intervalLength += timeSinceLastSignal;
 
-    if (intervalLength >= intervalSampleSize && t > lastRecordingTime + timeBetweenRecordings){
+    if (t > lastRecordingTime + timeBetweenRecordings){
         lastRecordingTime = t;
         value = returnValue / SIMTIME_DBL(intervalLength);
         return true;
