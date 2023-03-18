@@ -401,6 +401,7 @@ class INET_API UtilizationMovingAverageFilter : public cNumericResultFilter
     bool firstCall = true;
     double lastValue = -1;
     int durMS = getSimulation()->getSystemModule()->par("recordingSampleDuration").intValue();
+    simtime_t timeBetweenRecordings = SimTime(getSimulation()->getSystemModule()->par("timeBetweenRecordings").intValue(), SIMTIME_MS);
     simtime_t intervalSampleSize = SimTime(durMS, SIMTIME_MS);
     simtime_t intervalLength = 0;
     simtime_t warmupTime = getSimulation()->getWarmupPeriod();
@@ -408,6 +409,7 @@ class INET_API UtilizationMovingAverageFilter : public cNumericResultFilter
     std::queue<simtime_t> intervalTimes;
     std::queue<double> intervalValues;
     double returnValue = 0;
+    simtime_t lastRecordingTime = SIMTIME_ZERO;
 
   protected:
     virtual bool process(simtime_t& t, double& value, cObject *details) override;
@@ -572,11 +574,13 @@ class INET_API LocalSignalFilter : public cObjectResultFilter
 class INET_API EmitsPerDurationFilter : public cObjectResultFilter {
     protected:
         int durMS = getSimulation()->getSystemModule()->par("recordingSampleDuration").intValue();
+        simtime_t timeBetweenRecordings = SimTime(getSimulation()->getSystemModule()->par("timeBetweenRecordings").intValue(), SIMTIME_MS);
         intval_t signals = 0;
         simtime_t duration = SimTime(durMS, SIMTIME_MS);
         simtime_t lastSignalTime = getSimulation()->getWarmupPeriod();
         std::queue<simtime_t> intervalTimes;
         simtime_t intervalTimesSum = SIMTIME_ZERO;
+        simtime_t lastRecordingTime = SIMTIME_ZERO;
     public:
         virtual void receiveSignal(cResultFilter *prev, simtime_t_cref t, bool b, cObject *details) override;
         virtual void receiveSignal(cResultFilter *prev, simtime_t_cref t, intval_t, cObject *details) override;
