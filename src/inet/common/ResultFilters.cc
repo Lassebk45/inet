@@ -375,7 +375,7 @@ bool UtilizationMovingAverageFilter::process(simtime_t& t, double& value, cObjec
     lastValue = value;
     intervalLength += timeSinceLastSignal;
 
-    if (t > lastRecordingTime + timeBetweenRecordings){
+    if (t > lastRecordingTime + timeBetweenRecordings && t > warmupTime + intervalSampleSize){
         lastRecordingTime = t;
         value = returnValue / SIMTIME_DBL(intervalLength);
         return true;
@@ -888,7 +888,7 @@ void EmitsPerDurationFilter::updateValues(simtime_t_cref t) {
 void EmitsPerDurationFilter::receiveSignal(cResultFilter *prev, simtime_t_cref t, bool b, cObject *details)
 {
     updateValues(t);
-    if (t > lastRecordingTime + timeBetweenRecordings) {
+    if (t > lastRecordingTime + timeBetweenRecordings && t > warmupTime + duration) {
         lastRecordingTime = t;
         fire(this, t, signals, details);
     }
@@ -897,7 +897,7 @@ void EmitsPerDurationFilter::receiveSignal(cResultFilter *prev, simtime_t_cref t
 void EmitsPerDurationFilter::receiveSignal(cResultFilter *prev, simtime_t_cref t, intval_t l, cObject *details)
 {
     updateValues(t);
-    if (t > lastRecordingTime + timeBetweenRecordings) {
+    if (t > lastRecordingTime + timeBetweenRecordings && t > warmupTime + duration) {
         lastRecordingTime = t;
         fire(this, t, signals, details);
     }
@@ -906,7 +906,7 @@ void EmitsPerDurationFilter::receiveSignal(cResultFilter *prev, simtime_t_cref t
 void EmitsPerDurationFilter::receiveSignal(cResultFilter *prev, simtime_t_cref t, uintval_t l, cObject *details)
 {
     updateValues(t);
-    if (t > lastRecordingTime + timeBetweenRecordings) {
+    if (t > lastRecordingTime + timeBetweenRecordings && t > warmupTime + duration) {
         lastRecordingTime = t;
         fire(this, t, signals, details);
     }
@@ -915,7 +915,7 @@ void EmitsPerDurationFilter::receiveSignal(cResultFilter *prev, simtime_t_cref t
 void EmitsPerDurationFilter::receiveSignal(cResultFilter *prev, simtime_t_cref t, double d, cObject *details)
 {
     updateValues(t);
-    if (t > lastRecordingTime + timeBetweenRecordings) {
+    if (t > lastRecordingTime + timeBetweenRecordings && t > warmupTime + duration) {
         lastRecordingTime = t;
         fire(this, t, signals, details);
     }
@@ -924,7 +924,7 @@ void EmitsPerDurationFilter::receiveSignal(cResultFilter *prev, simtime_t_cref t
 void EmitsPerDurationFilter::receiveSignal(cResultFilter *prev, simtime_t_cref t, const SimTime& v, cObject *details)
 {
     updateValues(t);
-    if (t > lastRecordingTime + timeBetweenRecordings) {
+    if (t > lastRecordingTime + timeBetweenRecordings && t > warmupTime + duration) {
         lastRecordingTime = t;
         fire(this, t, signals, details);
     }
@@ -933,7 +933,7 @@ void EmitsPerDurationFilter::receiveSignal(cResultFilter *prev, simtime_t_cref t
 void EmitsPerDurationFilter::receiveSignal(cResultFilter *prev, simtime_t_cref t, const char *s, cObject *details)
 {
     updateValues(t);
-    if (t > lastRecordingTime + timeBetweenRecordings) {
+    if (t > lastRecordingTime + timeBetweenRecordings && t > warmupTime + duration) {
         lastRecordingTime = t;
         fire(this, t, signals, details);
     }
@@ -942,7 +942,7 @@ void EmitsPerDurationFilter::receiveSignal(cResultFilter *prev, simtime_t_cref t
 void EmitsPerDurationFilter::receiveSignal(cResultFilter *prev, simtime_t_cref t, cObject *obj, cObject *details)
 {
     updateValues(t);
-    if (t > lastRecordingTime + timeBetweenRecordings) {
+    if (t > lastRecordingTime + timeBetweenRecordings && t > warmupTime + duration) {
         lastRecordingTime = t;
         fire(this, t, signals, details);
     }

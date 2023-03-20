@@ -573,6 +573,7 @@ class INET_API LocalSignalFilter : public cObjectResultFilter
 };
 class INET_API EmitsPerDurationFilter : public cObjectResultFilter {
     protected:
+        simtime_t warmupTime = getSimulation()->getWarmupPeriod();
         int durMS = getSimulation()->getSystemModule()->par("recordingSampleDuration").intValue();
         simtime_t timeBetweenRecordings = SimTime(getSimulation()->getSystemModule()->par("timeBetweenRecordings").intValue(), SIMTIME_MS);
         intval_t signals = 0;
