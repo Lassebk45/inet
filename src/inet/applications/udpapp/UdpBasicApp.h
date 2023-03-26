@@ -25,6 +25,7 @@ extern template class ClockUserModuleMixin<ApplicationBase>;
 class INET_API UdpBasicApp : public ClockUserModuleMixin<ApplicationBase>, public UdpSocket::ICallback
 {
   protected:
+    simsignal_t sendIntervalChangedSignal;
     enum SelfMsgKinds { START = 1, SEND, STOP };
 
     // parameters
@@ -39,6 +40,7 @@ class INET_API UdpBasicApp : public ClockUserModuleMixin<ApplicationBase>, publi
     // state
     UdpSocket socket;
     ClockEvent *selfMsg = nullptr;
+    clocktime_t oldSendInterval;
 
     // statistics
     int numSent = 0;

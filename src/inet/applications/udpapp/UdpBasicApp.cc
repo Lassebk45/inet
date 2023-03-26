@@ -31,6 +31,8 @@ void UdpBasicApp::initialize(int stage)
 {
     ClockUserModuleMixin::initialize(stage);
 
+    sendIntervalChangedSignal = registerSignal("sendIntervalChanged");
+
     if (stage == INITSTAGE_LOCAL) {
         numSent = 0;
         numReceived = 0;
@@ -155,6 +157,10 @@ void UdpBasicApp::processSend()
 {
     sendPacket();
     clocktime_t d = par("sendInterval");
+    if (d != oldSendInterval)
+    {
+        emit(sendIntervalChangedSignal, this);
+    }
     if (stopTime < CLOCKTIME_ZERO || getClockTime() + d < stopTime) {
         selfMsg->setKind(SEND);
         scheduleClockEventAfter(d, selfMsg);
