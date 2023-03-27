@@ -74,6 +74,7 @@ class INET_API UdpBasicApp : public ClockUserModuleMixin<ApplicationBase>, publi
   public:
     UdpBasicApp() {}
     ~UdpBasicApp();
+    std::vector<std::string> getDestAddressStr(){return destAddressStr;}
 };
 
 } // namespace inet

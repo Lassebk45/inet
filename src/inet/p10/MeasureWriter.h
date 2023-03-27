@@ -6,7 +6,7 @@
 #define INET_MEASUREWRITER_H
 
 #include "inet/p10/json.hpp"
-#include "inet/common/clock/ClockUserModuleMixin.h"
+#include "inet/applications/udpapp/UdpBasicApp.h"
 
 namespace inet {
 
@@ -25,6 +25,7 @@ class INET_API MeasureWriter : public cSimpleModule, public cListener {
         virtual void receiveSignal(cComponent *source, simsignal_t signalID, cObject *obj, cObject *details) override;
         virtual void initialize() override;
         virtual void updateUtilization(std::string src, std::string tgt, double utilization);
+        virtual void updateDemands(UdpBasicApp* app, double sendInterval);
         virtual void handleMessage(cMessage* msg) override;
         virtual void writeUtilization();
         virtual void writeDemands();

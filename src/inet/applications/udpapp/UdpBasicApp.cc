@@ -159,8 +159,9 @@ void UdpBasicApp::processSend()
     clocktime_t d = par("sendInterval");
     if (d != oldSendInterval)
     {
-        emit(sendIntervalChangedSignal, this);
+        emit(sendIntervalChangedSignal, SIMTIME_DBL(d), this);
     }
+    oldSendInterval = d;
     if (stopTime < CLOCKTIME_ZERO || getClockTime() + d < stopTime) {
         selfMsg->setKind(SEND);
         scheduleClockEventAfter(d, selfMsg);

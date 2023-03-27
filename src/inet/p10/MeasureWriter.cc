@@ -22,6 +22,11 @@ void MeasureWriter::receiveSignal(cComponent *source, simsignal_t signalID, doub
         std::string tgtRouter = _source->getSourceGate()->getNextGate()->getOwner()->getFullName();
         updateUtilization(srcRouter, tgtRouter, d);
     }
+    else if (signalID == sendIntervalChangedSignal)
+    {
+        UdpBasicApp* udpApp = (UdpBasicApp*) details;
+        updateDemands(udpApp, d);
+    }
 }
 
 void MeasureWriter::receiveSignal(cComponent *source, simsignal_t signalID, cObject *obj, cObject *details)
@@ -29,6 +34,7 @@ void MeasureWriter::receiveSignal(cComponent *source, simsignal_t signalID, cObj
     if (signalID == sendIntervalChangedSignal)
     {
         UdpBasicApp* _obj = (UdpBasicApp*) obj;
+        //updateDemands(_obj);
     }
 }
 void MeasureWriter::initialize()
@@ -36,7 +42,6 @@ void MeasureWriter::initialize()
     utilSignal = registerSignal("utilization");
     sendIntervalChangedSignal = registerSignal("sendIntervalChanged");
     getSimulation()->getSystemModule()->subscribe(utilSignal, this);
-    getSimulation()->getSystemModule()->subscribe(sendIntervalChangedSignal, this);
     getSimulation()->getSystemModule()->subscribe(sendIntervalChangedSignal, this);
     writeInterval = par("writeInterval");
     
@@ -49,8 +54,24 @@ void MeasureWriter::updateUtilization(std::string src, std::string tgt, double u
     linkUtilizations[src][tgt] = utilization;
 }
 
+void MeasureWriter::updateDemands(UdpBasicApp* app, double sendInterval)
+{
+    // Get the source router
+    const char * source = app->getParentModule()->gate("pppg$o", 0)->getNextGate()->getOwnerModule()->getFullName();
+    // Get list of target Target routers
+    std::vector<std::string> targetRouters;
+    for (std::string tgtAdress : app->getDestAddressStr())
+    {
+        std::string tgtRouter = getModuleByPath(tgtAdress.c_str())->gate("pppg$o", 0)->getNextGate()->getOwnerModule()->getFullName();
+        targetRouters.push_back(tgtRouter);
+    }
+
+    demands[source][targetRouters[0]] = sendInterval;
+}
+
 void MeasureWriter::handleMessage(cMessage* msg)
 {
+    printf("handleMessage()");
     if (msg == writeTrigger)
     {
         writeUtilization();
@@ -62,16 +83,17 @@ void MeasureWriter::handleMessage(cMessage* msg)
 
 void MeasureWriter::writeUtilization()
 {
+    printf("writeUtilization()\n");
     linkUtilizations["timestamp"] = SIMTIME_DBL(nextWriteTime);
-    for (auto it = linkUtilizations.begin(); it != linkUtilizations.end(); ++it)
-    {
-        std::ofstream o("utilization.json");
-        o << std::setw(4) << linkUtilizations << std::endl;
-    }
+    std::ofstream o("utilization.json");
+    o << std::setw(4) << linkUtilizations << std::endl;
 }
 
 void MeasureWriter::writeDemands()
 {
-
+    printf("writeDemands()\n");
+    demands["timestamp"] = SIMTIME_DBL(nextWriteTime);
+    std::ofstream o("demands.json");
+    o << std::setw(4) << demands << std::endl;
 }
 }
