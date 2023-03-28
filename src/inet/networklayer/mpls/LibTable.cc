@@ -24,6 +24,9 @@ void LibTable::initialize(int stage)
 {
     cSimpleModule::initialize(stage);
 
+    libTableChangedSignal = registerSignal("libTableChanged");
+
+
     if (stage == INITSTAGE_LOCAL) {
         maxLabel = 0;
         WATCH_VECTOR(lib);
@@ -145,6 +148,7 @@ int LibTable::installLibEntry(int inLabel, std::string inInterface, const LabelO
         newItem.entries.push_back(fwe);
         newItem.color = color;
         lib.push_back(newItem);
+        emit(libTableChangedSignal, this);
         return newItem.inLabel;
     }
     else {
@@ -159,9 +163,11 @@ int LibTable::installLibEntry(int inLabel, std::string inInterface, const LabelO
             ForwardingEntry fwe { outLabel, outInterface, priority };
             elem.entries.push_back(fwe);
             elem.color = color;
+            emit(libTableChangedSignal, this);
             return inLabel;
         }
         ASSERT(false);
+        emit(libTableChangedSignal, this);
         return 0; // prevent warning
     }
 }
@@ -173,6 +179,7 @@ void LibTable::removeLibEntry(int inLabel)
             continue;
 
         lib.erase(lib.begin() + i);
+        emit(libTableChangedSignal, this);
         return;
     }
     ASSERT(false);
@@ -251,6 +258,8 @@ void LibTable::readTableFromXML(const cXMLElement *libtable)
         if (newItem.inLabel > maxLabel)
             maxLabel = newItem.inLabel;
     }
+
+    emit(libTableChangedSignal, this);
 }
 
 LabelOpVector LibTable::pushLabel(int label)

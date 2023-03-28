@@ -26,7 +26,7 @@ enum LabelOpCode {
 
 struct LabelOp
 {
-    int label;
+    int label = 0;
     LabelOpCode optcode;
 };
 
@@ -60,6 +60,8 @@ class INET_API LibTable : public cSimpleModule
     int maxLabel;
     std::vector<LibEntry> lib;
 
+    simsignal_t libTableChangedSignal;
+
   protected:
     virtual void initialize(int stage) override;
     virtual int numInitStages() const override { return NUM_INIT_STAGES; }
@@ -78,6 +80,8 @@ class INET_API LibTable : public cSimpleModule
             std::string outInterface, int color, int priority = 0);
 
     virtual void removeLibEntry(int inLabel);
+
+    std::vector<LibEntry> getLibTable(){return this->lib;}
 
     // utility
     static LabelOpVector pushLabel(int label);
