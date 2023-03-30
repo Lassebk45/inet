@@ -61,6 +61,9 @@ class INET_API LibTable : public cSimpleModule
     std::vector<LibEntry> lib;
 
     simsignal_t libTableChangedSignal;
+    simtime_t nextUpdateCheck = 0.1;
+    cMessage* updateCheckMessage = new cMessage();
+    std::string updatePath;
 
   protected:
     virtual void initialize(int stage) override;
@@ -69,6 +72,7 @@ class INET_API LibTable : public cSimpleModule
 
     // static configuration
     virtual void readTableFromXML(const cXMLElement *libtable);
+    virtual void updateTableFromXML(const cXMLElement *libtable);
     bool isInterfaceUp(const std::string& ifname);
 
   public:

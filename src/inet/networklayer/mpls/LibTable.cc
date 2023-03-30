@@ -24,22 +24,70 @@ void LibTable::initialize(int stage)
 {
     cSimpleModule::initialize(stage);
 
-    libTableChangedSignal = registerSignal("libTableChanged");
-
-
     if (stage == INITSTAGE_LOCAL) {
         maxLabel = 0;
         WATCH_VECTOR(lib);
     }
     else if (stage == INITSTAGE_NETWORK_LAYER) {
+        updatePath = static_cast<const char*>(par("updatePath"));
+        libTableChangedSignal = registerSignal("libTableChanged");
         // read configuration
+        if (!updatePath.empty())
+        {
+            scheduleAt(nextUpdateCheck, updateCheckMessage);
+        }
         readTableFromXML(par("config"));
+    }
+
+}
+
+void LibTable::handleMessage(cMessage * msg)
+{
+    if (msg == updateCheckMessage){
+        if (FILE *file = fopen(updatePath.c_str(), "r")) {
+            fclose(file);
+            updateTableFromXML(getEnvir()->getXMLDocument(updatePath.c_str()));
+            remove(updatePath.c_str());
+        }
+        nextUpdateCheck += 0.1;
+        scheduleAt(nextUpdateCheck, updateCheckMessage);
     }
 }
 
-void LibTable::handleMessage(cMessage *)
+void LibTable::updateTableFromXML(const cXMLElement *libtable)
 {
-    ASSERT(false);
+    using namespace xmlutils;
+
+    ASSERT(libtable);
+    ASSERT(!strcmp(libtable->getTagName(), "updateTable"));
+    cXMLElementList removeList = libtable->getChildrenByTagName("remove");
+    cXMLElementList swapList = libtable->getChildrenByTagName("swap");
+    cXMLElementList addList = libtable->getChildrenByTagName("add");
+
+    for (auto& elem : removeList) {
+        const cXMLElement& removeElement = *elem;
+
+        checkTags(&removeElement, "inLabel inInterface priority");
+
+        int priority = getParameterIntValue(&removeElement, "priority", 0);
+        const char* inInterface = getParameterStrValue(&removeElement, "inInterface");
+        int inLabel = getParameterIntValue(&removeElement, "inLabel");
+
+        // Remove the forwarding entry
+        std::vector<LibEntry>::iterator iter = std::find_if(lib.begin(), lib.end(), [inLabel, inInterface](const LibEntry& entry){
+            return entry.inLabel == inLabel && entry.inInterface == inInterface;
+        });
+        size_t index = std::distance(lib.begin(), iter);
+
+        std::vector<ForwardingEntry>::iterator iter2 = std::find_if(lib[index].entries.begin(), lib[index].entries.end(), [priority](const ForwardingEntry& entry){
+            return entry.priority == priority;
+        });
+        size_t index2 = std::distance(lib[index].entries.begin(), iter2);
+        lib[index].entries.erase(lib[index].entries.begin() + index2);
+
+    }
+
+    emit(libTableChangedSignal, this);
 }
 
 /**
@@ -302,7 +350,6 @@ bool operator!=(const LibTable::LibEntry& lhs, const LibTable::LibEntry& rhs){
     return !(lhs == rhs);
 }
 
-
 std::ostream& operator<<(std::ostream& os, const LabelOpVector& label)
 {
     os << "{";
@@ -351,6 +398,5 @@ std::ostream& operator<<(std::ostream& os, const LibTable::LibEntry& lib)
     os << "    ]";
     return os;
 }
-
 } // namespace inet
 

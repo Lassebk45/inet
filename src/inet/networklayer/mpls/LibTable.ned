@@ -33,6 +33,7 @@ simple LibTable
 {
     parameters:
         xml config = default(xml("<libtable/>")); // table contents to be loaded on startup
+        string updatePath = default("");
         @display("i=block/table2");
 }
 
