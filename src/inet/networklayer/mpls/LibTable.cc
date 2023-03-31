@@ -29,13 +29,7 @@ void LibTable::initialize(int stage)
         WATCH_VECTOR(lib);
     }
     else if (stage == INITSTAGE_NETWORK_LAYER) {
-        updatePath = static_cast<const char*>(par("updatePath"));
         libTableChangedSignal = registerSignal("libTableChanged");
-        // read configuration
-        if (!updatePath.empty())
-        {
-            scheduleAt(nextUpdateCheck, updateCheckMessage);
-        }
         readTableFromXML(par("config"));
     }
 
@@ -43,14 +37,12 @@ void LibTable::initialize(int stage)
 
 void LibTable::handleMessage(cMessage * msg)
 {
-    if (msg == updateCheckMessage){
-        if (FILE *file = fopen(updatePath.c_str(), "r")) {
+    if (msg == updateMessage){
+        /*if (FILE *file = fopen(updatePath.c_str(), "r")) {
             fclose(file);
             updateTableFromXML(getEnvir()->getXMLDocument(updatePath.c_str()));
             remove(updatePath.c_str());
-        }
-        nextUpdateCheck += 0.1;
-        scheduleAt(nextUpdateCheck, updateCheckMessage);
+        }*/
     }
 }
 
