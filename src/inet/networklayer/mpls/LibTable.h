@@ -83,7 +83,7 @@ class INET_API LibTable : public cSimpleModule
 
     virtual void removeLibEntry(int inLabel);
 
-    std::vector<LibEntry> getLibTable(){return this->lib;}
+    std::vector<LibEntry> *getLibTable(){return &this->lib;}
 
     // utility
     static LabelOpVector pushLabel(int label);

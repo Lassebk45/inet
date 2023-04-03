@@ -76,7 +76,7 @@ void MeasureWriter::updateDemands(UdpBasicApp* app, double sendInterval)
 
 void MeasureWriter::updateLibTable(LibTable * libTable)
 {
-    std::string router = libTable->getParentModule()->getFullName();
+    /*std::string router = libTable->getParentModule()->getFullName();
     for (auto libEntry : libTable->getLibTable())
     {
         for (LibTable::ForwardingEntry forwardingEntry : libEntry.entries)
@@ -104,7 +104,7 @@ void MeasureWriter::updateLibTable(LibTable * libTable)
 
             libTables[router][std::to_string(libEntry.inLabel)][std::to_string(forwardingEntry.priority)] = {nextHop, labelOperations};
         }
-    }
+    }*/
 }
 
 void MeasureWriter::handleMessage(cMessage* msg)
