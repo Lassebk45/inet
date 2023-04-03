@@ -61,7 +61,7 @@ class INET_API LibTable : public cSimpleModule
     std::vector<LibEntry> lib;
 
     simsignal_t libTableChangedSignal;
-    cMessage* updateMessage = new cMessage();
+    cMessage* updateMessage;
 
   protected:
     virtual void initialize(int stage) override;
