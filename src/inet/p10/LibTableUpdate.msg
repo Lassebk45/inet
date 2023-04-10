@@ -1,0 +1,4 @@
+message LibTableUpdate
+{
+       cXMLElement* updateElement;
+}

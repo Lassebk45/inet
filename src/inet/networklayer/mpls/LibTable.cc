@@ -16,6 +16,8 @@
 #include "inet/networklayer/common/InterfaceTable.h"
 #include "inet/networklayer/common/NetworkInterface.h"
 
+#include "inet/p10/LibTableUpdate_m.h"
+
 namespace inet {
 
 Define_Module(LibTable);
@@ -37,49 +39,162 @@ void LibTable::initialize(int stage)
 
 void LibTable::handleMessage(cMessage * msg)
 {
-    if (msg == updateMessage){
+    using namespace xmlutils;
+    
+    if (dynamic_cast<LibTableUpdate*>(msg)){
+        LibTableUpdate* updateMessage = (LibTableUpdate*) msg;
+        const cXMLElement *element = updateMessage->getUpdateElement();
+        const char* updateType = element->getTagName();
+        if (strcmp(updateType, "addLibEntry") == 0)
+        {
+            // Check that all subelements are present
+            checkTags(element, "priority inLabel inInterface outInterface outLabel");
+            
+            // Get the label stack operations
+            LabelOpVector opsVector;
+            cXMLElement* outLabelElement = element->getFirstChildWithTag("outLabel");
+            checkTags(outLabelElement, "op");
+            cXMLElementList ops = outLabelElement->getChildren();
+            for (auto& ops_oit : ops) {
+                const cXMLElement& op = *ops_oit;
+                const char *val = op.getAttribute("value");
+                const char *code = op.getAttribute("code");
+                ASSERT(code);
+                LabelOp l;
+        
+                if (!strcmp(code, "push")) {
+                    l.optcode = PUSH_OPER;
+                    ASSERT(val);
+                    l.label = atoi(val);
+                    ASSERT(l.label > 0);
+                }
+                else if (!strcmp(code, "pop")) {
+                    l.optcode = POP_OPER;
+                    ASSERT(!val);
+                }
+                else if (!strcmp(code, "swap")) {
+                    l.optcode = SWAP_OPER;
+                    ASSERT(val);
+                    l.label = atoi(val);
+                    ASSERT(l.label > 0);
+                }
+                else
+                    ASSERT(false);
+        
+                opsVector.push_back(l);
+            }
+            
+            
+            installLibEntry(getParameterIntValue(element, "inLabel"), getParameterStrValue(element, "inInterface"), opsVector, getParameterStrValue(element, "outInterface"), 1, getParameterIntValue(element, "priority"));
+        }
         /*if (FILE *file = fopen(updatePath.c_str(), "r")) {
             fclose(file);
             updateTableFromXML(getEnvir()->getXMLDocument(updatePath.c_str()));
             remove(updatePath.c_str());
         }*/
+        delete msg;
     }
 }
 
-void LibTable::updateTableFromXML(const cXMLElement *libtable)
-{
+void LibTable::updateLibTable(cXMLElement *updateElement){
     using namespace xmlutils;
-
-    ASSERT(libtable);
-    ASSERT(!strcmp(libtable->getTagName(), "updateTable"));
-    cXMLElementList removeList = libtable->getChildrenByTagName("remove");
-    cXMLElementList swapList = libtable->getChildrenByTagName("swap");
-    cXMLElementList addList = libtable->getChildrenByTagName("add");
-
-    for (auto& elem : removeList) {
-        const cXMLElement& removeElement = *elem;
-
-        checkTags(&removeElement, "inLabel inInterface priority");
-
-        int priority = getParameterIntValue(&removeElement, "priority", 0);
-        const char* inInterface = getParameterStrValue(&removeElement, "inInterface");
-        int inLabel = getParameterIntValue(&removeElement, "inLabel");
-
-        // Remove the forwarding entry
-        std::vector<LibEntry>::iterator iter = std::find_if(lib.begin(), lib.end(), [inLabel, inInterface](const LibEntry& entry){
-            return entry.inLabel == inLabel && entry.inInterface == inInterface;
-        });
-        size_t index = std::distance(lib.begin(), iter);
-
-        std::vector<ForwardingEntry>::iterator iter2 = std::find_if(lib[index].entries.begin(), lib[index].entries.end(), [priority](const ForwardingEntry& entry){
-            return entry.priority == priority;
-        });
-        size_t index2 = std::distance(lib[index].entries.begin(), iter2);
-        lib[index].entries.erase(lib[index].entries.begin() + index2);
-
+    const char* updateType = updateElement->getTagName();
+    if (strcmp(updateType, "add") == 0)
+    {
+        checkTags(updateElement, "priority inLabel inRouter outRouter outLabel");
+        LabelOpVector opsVector;
+        cXMLElement* outLabelElement = updateElement->getFirstChildWithTag("outLabel");
+        checkTags(outLabelElement, "op");
+        cXMLElementList ops = outLabelElement->getChildren();
+        for (auto& ops_oit : ops) {
+            const cXMLElement& op = *ops_oit;
+            const char *val = op.getAttribute("value");
+            const char *code = op.getAttribute("code");
+            ASSERT(code);
+            LabelOp l;
+        
+            if (!strcmp(code, "push")) {
+                l.optcode = PUSH_OPER;
+                ASSERT(val);
+                l.label = atoi(val);
+                ASSERT(l.label > 0);
+            }
+            else if (!strcmp(code, "pop")) {
+                l.optcode = POP_OPER;
+                ASSERT(!val);
+            }
+            else if (!strcmp(code, "swap")) {
+                l.optcode = SWAP_OPER;
+                ASSERT(val);
+                l.label = atoi(val);
+                ASSERT(l.label > 0);
+            }
+            else
+                ASSERT(false);
+        
+            opsVector.push_back(l);
+        }
+        const char* sourceRouter = updateElement->getAttribute("router");
+        const char* targetRouter = getParameterStrValue(updateElement, "outRouter");
+        const char* inRouter = getParameterStrValue(updateElement, "inRouter");
+    
+    
+        // Find the outgoing interface
+        std::string outInterface = "";
+        if (strcmp(sourceRouter, targetRouter) == 0)
+        {
+            outInterface = "mlo0";
+        }
+        else
+        {
+            for (int i = 0; i < this->getParentModule()->gateSize("pppg$o"); i++)
+            {
+                if (strcmp(targetRouter, this->getParentModule()->gate("pppg$o", i)->getNextGate()->getOwnerModule()->getFullName()) == 0)
+                {
+                    outInterface = "ppp" + std::to_string(i);
+                    break;
+                }
+            }
+            if (strcmp(outInterface.c_str(), "") == 0){
+                throw cRuntimeError("Cannot find the outInterface connecting router %s to router %s", sourceRouter, targetRouter);
+            }
+        }
+        //
+        // Get the inInterface
+        std::string inInterface = "";
+        if (strcmp(inRouter, "any") == 0)
+        {
+            inInterface = "any";
+        }
+        else
+        {
+            for (int i = 0; i < this->getParentModule()->gateSize("pppg$o"); i++)
+            {
+                if (strcmp(inRouter, this->getParentModule()->gate("pppg$o", i)->getNextGate()->getOwnerModule()->getFullName()) == 0)
+                {
+                    //printf("inRouter: %s\n", this->getParentModule()->gate("pppg$o", i)->getNextGate()->getOwnerModule()->getFullName());
+    
+                    inInterface = "ppp" + std::to_string(i);
+                    //printf("inInterface: %s\n", inInterface.c_str());
+                    break;
+                }
+            }
+            if (strcmp(inInterface.c_str(), "") == 0){
+                throw cRuntimeError("Cannot find inInterface connecting router %s to router %s", inRouter, sourceRouter);
+            }
+        }
+        
+        // Add the rule
+        installLibEntry(getParameterIntValue(updateElement, "inLabel"), inInterface.c_str(), opsVector, outInterface.c_str(), 1, getParameterIntValue(updateElement, "priority"));
     }
-
-    emit(libTableChangedSignal, this);
+    else if (strcmp(updateType, "remove") == 0)
+    {
+        checkTags(updateElement, "priority inLabel inRouter");
+    }
+    else
+    {
+        throw cRuntimeError("Invalid updateType: %s\n", updateType);
+    }
 }
 
 /**
@@ -201,6 +316,7 @@ int LibTable::installLibEntry(int inLabel, std::string inInterface, const LabelO
             //elem.outLabel = outLabel;
             //elem.outInterface = outInterface;
             ForwardingEntry fwe { outLabel, outInterface, priority };
+            
             elem.entries.push_back(fwe);
             elem.color = color;
             emit(libTableChangedSignal, this);
@@ -210,6 +326,56 @@ int LibTable::installLibEntry(int inLabel, std::string inInterface, const LabelO
         emit(libTableChangedSignal, this);
         return 0; // prevent warning
     }
+}
+
+int LibTable::swapLibEntry(int inLabel, std::string inInterface, const LabelOpVector& outLabel,
+                              std::string outInterface, int color, int priority /* = 0 */)
+{
+    int elemFound = 0;
+    for (auto& elem : lib) {
+        //if (elem.inLabel != inLabel)
+        if (elem.inLabel != inLabel /* || elem.inInterface != inInterface ???*/)
+            continue;
+        
+        //elem.inInterface = inInterface;
+        //elem.outLabel = outLabel;
+        //elem.outInterface = outInterface;
+        elemFound = 1;
+        ForwardingEntry fwe { outLabel, outInterface, priority };
+        int index = -1;
+        int priorityFound = 0;
+        for (int i; i < elem.entries.size(); i++)
+        {
+            if (elem.entries[i].priority == priority)
+            {
+                index = i;
+                break;
+            }
+        }
+        if (index != -1){
+            elem.entries[index] = fwe;
+        }
+        else
+        {
+            throw cRuntimeError("Could not swap forwarding entry rule on router %s with label %d, inInterface %s and priority %d. No rule with priority %d currently exists \n", this->getParentModule()->getFullName(), inLabel, inInterface.c_str(), priority, priority);
+        }
+        elem.color = color;
+        emit(libTableChangedSignal, this);
+        return inLabel;
+    }
+    
+    if (!elemFound)
+    {
+        throw cRuntimeError("Could not swap forwarding entry rule on router %s with label %d, inInterface %s and priority %d. No rule with label %d currently exists \n", this->getParentModule()->getFullName(), inLabel, inInterface.c_str(), priority, inLabel);
+    }
+    ASSERT(false);
+    emit(libTableChangedSignal, this);
+    return 0; // prevent warning
+}
+
+int LibTable::removeLibEntry(int inLabel, std::string inInterface, int priority)
+{
+    return 0;
 }
 
 void LibTable::removeLibEntry(int inLabel)

@@ -2,15 +2,15 @@
 // Created by lasse on 3/24/23.
 //
 
-#include "inet/p10/DynamicUpdater.h"
+#include "inet/p10/TwoPhaseCommit.h"
 #include "inet/common/XMLUtils.h"
 #include "inet/networklayer/mpls/LibTable.h"
 
 namespace inet {
 
-Define_Module(DynamicUpdater);
+Define_Module(TwoPhaseCommit);
 
-void DynamicUpdater::initialize(){
+void TwoPhaseCommit::initialize(){
     updatePath = par("updatePath");
     nextUpdateTime = par("updateInterval");
     updateTrigger = new cMessage();
@@ -21,7 +21,7 @@ void DynamicUpdater::initialize(){
     }
 }
 
-void DynamicUpdater::handleMessage(cMessage* msg){
+void TwoPhaseCommit::handleMessage(cMessage* msg){
     if (msg == updateTrigger)
     {
         // If the update file exists load the updates
@@ -40,25 +40,22 @@ void DynamicUpdater::handleMessage(cMessage* msg){
     }
 }
 
-void DynamicUpdater::update(const cXMLElement * updates)
+void TwoPhaseCommit::update(const cXMLElement * updates)
 {
     using namespace xmlutils;
     
     ASSERT(updates);
-    ASSERT(!strcmp(updates->getTagName(), "libtableUpdates"));
-    
-    checkTags(updates, "addLibentry removeLibentry Reclassify removeLabelRules");
-    
-    cXMLElementList addLibEntryList = updates->getChildrenByTagName("addLibentry");
-    
-    for(auto& elem : addLibEntryList)
+    ASSERT(!strcmp(updates->getTagName(), "twoPhaseCommit"));
+    checkTags(updates, "add remove reclassify");
+    for(cXMLElement* entry : updates->getChildrenByTagName("add"))
     {
-        const cXMLElement& entry = *elem;
-        checkTags(&entry, "priority inLabel inInterface outInterface outLabel");
-        LibTable* libTable = (LibTable *)getModuleByPath(entry.getAttribute("libTable"));
-        //auto libTable = getModuleByPath(getParameterStrValue(elem, "libTable"));
-        auto libEntries = libTable->getLibTable();
-        
+        LibTable* libTable = (LibTable *)getModuleByPath(entry->getAttribute("router"))->getModuleByPath(".libTable");
+        libTable->updateLibTable(entry);
+    }
+    for(cXMLElement* entry : updates->getChildrenByTagName("remove"))
+    {
+        LibTable* libTable = (LibTable *)getModuleByPath(entry->getAttribute("router"))->getModuleByPath(".libTable");
+        libTable->updateLibTable(entry);
     }
     
 }

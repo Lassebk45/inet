@@ -2,15 +2,15 @@
 // Created by lasse on 3/24/23.
 //
 
-#ifndef INET_DYNAMICUPDATER_H
-#define INET_DYNAMICUPDATER_H
+#ifndef INET_TWOPHASECOMMIT_H
+#define INET_TWOPHASECOMMIT_H
 
 #include "inet/p10/json.hpp"
 #include "inet/networklayer/mpls/LibTable.h"
 
 namespace inet {
 
-class INET_API DynamicUpdater : public cSimpleModule {
+class INET_API TwoPhaseCommit : public cSimpleModule {
     protected:
         cMessage* updateTrigger;
         const char* updatePath;
@@ -23,4 +23,4 @@ class INET_API DynamicUpdater : public cSimpleModule {
 };
 
 }
-#endif //INET_DYNAMICUPDATER_H
+#endif //INET_TWOPHASECOMMIT_H

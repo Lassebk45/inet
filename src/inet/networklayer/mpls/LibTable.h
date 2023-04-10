@@ -15,6 +15,8 @@
 #include "inet/networklayer/contract/ipv4/Ipv4Address.h"
 #include "inet/networklayer/ipv4/Ipv4Header_m.h"
 #include "inet/networklayer/mpls/ConstType.h"
+#include "inet/p10/LibTableUpdate_m.h"
+
 
 namespace inet {
 
@@ -70,7 +72,6 @@ class INET_API LibTable : public cSimpleModule
 
     // static configuration
     virtual void readTableFromXML(const cXMLElement *libtable);
-    virtual void updateTableFromXML(const cXMLElement *libtable);
     bool isInterfaceUp(const std::string& ifname);
 
   public:
@@ -80,10 +81,16 @@ class INET_API LibTable : public cSimpleModule
 
     virtual int installLibEntry(int inLabel, std::string inInterface, const LabelOpVector& outLabel,
             std::string outInterface, int color, int priority = 0);
+    
+    virtual int swapLibEntry(int inLabel, std::string inInterface, const LabelOpVector& outLabel,
+                            std::string outInterface, int color, int priority = 0);
+
+    virtual int removeLibEntry(int inLabel, std::string inInterface, int priority = 0);
 
     virtual void removeLibEntry(int inLabel);
 
     std::vector<LibEntry> *getLibTable(){return &this->lib;}
+    virtual void updateLibTable(cXMLElement *updateElement);
 
     // utility
     static LabelOpVector pushLabel(int label);
