@@ -99,6 +99,7 @@ void LibTable::handleMessage(cMessage * msg)
 void LibTable::updateLibTable(cXMLElement *updateElement){
     using namespace xmlutils;
     const char* updateType = updateElement->getTagName();
+    printf("updateType: %s\n", updateType);
     if (strcmp(updateType, "add") == 0)
     {
         checkTags(updateElement, "priority inLabel inRouter outRouter outLabel");
@@ -190,6 +191,148 @@ void LibTable::updateLibTable(cXMLElement *updateElement){
     else if (strcmp(updateType, "remove") == 0)
     {
         checkTags(updateElement, "priority inLabel inRouter");
+        const char* sourceRouter = updateElement->getAttribute("router");
+        const char* inRouter = getParameterStrValue(updateElement, "inRouter");
+        // Convert inRouter to inInterface
+        std::string inInterface = "";
+        if (strcmp(inRouter, "any") == 0)
+        {
+            inInterface = "any";
+        }
+        else
+        {
+            for (int i = 0; i < this->getParentModule()->gateSize("pppg$o"); i++)
+            {
+                if (strcmp(inRouter, this->getParentModule()->gate("pppg$o", i)->getNextGate()->getOwnerModule()->getFullName()) == 0)
+                {
+                    //printf("inRouter: %s\n", this->getParentModule()->gate("pppg$o", i)->getNextGate()->getOwnerModule()->getFullName());
+
+                    inInterface = "ppp" + std::to_string(i);
+                    //printf("inInterface: %s\n", inInterface.c_str());
+                    break;
+                }
+            }
+            if (strcmp(inInterface.c_str(), "") == 0){
+                throw cRuntimeError("Cannot find inInterface connecting router %s to router %s", inRouter, sourceRouter);
+            }
+        }
+
+        removeLibEntry(getParameterIntValue(updateElement, "inLabel"), inInterface.c_str(), getParameterIntValue(updateElement, "priority"));
+
+    }
+    else if (strcmp(updateType, "swap") == 0)
+    {
+        checkTags(updateElement, "priority inLabel inRouter outRouter outLabel");
+        const char* sourceRouter = updateElement->getAttribute("router");
+        const char* inRouter = getParameterStrValue(updateElement, "inRouter");
+        // Convert inRouter to inInterface
+        std::string inInterface = "";
+        if (strcmp(inRouter, "any") == 0)
+        {
+            inInterface = "any";
+        }
+        else
+        {
+            for (int i = 0; i < this->getParentModule()->gateSize("pppg$o"); i++)
+            {
+                if (strcmp(inRouter, this->getParentModule()->gate("pppg$o", i)->getNextGate()->getOwnerModule()->getFullName()) == 0)
+                {
+                    //printf("inRouter: %s\n", this->getParentModule()->gate("pppg$o", i)->getNextGate()->getOwnerModule()->getFullName());
+
+                    inInterface = "ppp" + std::to_string(i);
+                    //printf("inInterface: %s\n", inInterface.c_str());
+                    break;
+                }
+            }
+            if (strcmp(inInterface.c_str(), "") == 0){
+                throw cRuntimeError("Cannot find inInterface connecting router %s to router %s", inRouter, sourceRouter);
+            }
+        }
+
+        removeLibEntry(getParameterIntValue(updateElement, "inLabel"), inInterface.c_str(), getParameterIntValue(updateElement, "priority"));
+
+        LabelOpVector opsVector;
+        cXMLElement* outLabelElement = updateElement->getFirstChildWithTag("outLabel");
+        checkTags(outLabelElement, "op");
+        cXMLElementList ops = outLabelElement->getChildren();
+        for (auto& ops_oit : ops) {
+            const cXMLElement& op = *ops_oit;
+            const char *val = op.getAttribute("value");
+            const char *code = op.getAttribute("code");
+            ASSERT(code);
+            LabelOp l;
+
+            if (!strcmp(code, "push")) {
+                l.optcode = PUSH_OPER;
+                ASSERT(val);
+                l.label = atoi(val);
+                ASSERT(l.label > 0);
+            }
+            else if (!strcmp(code, "pop")) {
+                l.optcode = POP_OPER;
+                ASSERT(!val);
+            }
+            else if (!strcmp(code, "swap")) {
+                l.optcode = SWAP_OPER;
+                ASSERT(val);
+                l.label = atoi(val);
+                ASSERT(l.label > 0);
+            }
+            else
+                ASSERT(false);
+
+            opsVector.push_back(l);
+        }
+        const char* targetRouter = getParameterStrValue(updateElement, "outRouter");
+
+
+        // Find the outgoing interface
+        std::string outInterface = "";
+        if (strcmp(sourceRouter, targetRouter) == 0)
+        {
+            outInterface = "mlo0";
+        }
+        else
+        {
+            for (int i = 0; i < this->getParentModule()->gateSize("pppg$o"); i++)
+            {
+                if (strcmp(targetRouter, this->getParentModule()->gate("pppg$o", i)->getNextGate()->getOwnerModule()->getFullName()) == 0)
+                {
+                    outInterface = "ppp" + std::to_string(i);
+                    break;
+                }
+            }
+            if (strcmp(outInterface.c_str(), "") == 0){
+                throw cRuntimeError("Cannot find the outInterface connecting router %s to router %s", sourceRouter, targetRouter);
+            }
+        }
+        //
+        // Get the inInterface
+        inInterface = "";
+        if (strcmp(inRouter, "any") == 0)
+        {
+            inInterface = "any";
+        }
+        else
+        {
+            for (int i = 0; i < this->getParentModule()->gateSize("pppg$o"); i++)
+            {
+                if (strcmp(inRouter, this->getParentModule()->gate("pppg$o", i)->getNextGate()->getOwnerModule()->getFullName()) == 0)
+                {
+                    //printf("inRouter: %s\n", this->getParentModule()->gate("pppg$o", i)->getNextGate()->getOwnerModule()->getFullName());
+
+                    inInterface = "ppp" + std::to_string(i);
+                    //printf("inInterface: %s\n", inInterface.c_str());
+                    break;
+                }
+            }
+            if (strcmp(inInterface.c_str(), "") == 0){
+                throw cRuntimeError("Cannot find inInterface connecting router %s to router %s", inRouter, sourceRouter);
+            }
+        }
+
+        // Add the rule
+        installLibEntry(getParameterIntValue(updateElement, "inLabel"), inInterface.c_str(), opsVector, outInterface.c_str(), 1, getParameterIntValue(updateElement, "priority"));
     }
     else
     {
@@ -293,39 +436,30 @@ bool LibTable::resolveLabel(std::string inInterface, int inLabel,
 int LibTable::installLibEntry(int inLabel, std::string inInterface, const LabelOpVector& outLabel,
         std::string outInterface, int color, int priority /* = 0 */)
 {
-    if (inLabel == -1) {
-        LibEntry newItem;
-        newItem.inLabel = ++maxLabel;
-        newItem.inInterface = inInterface;
-        //newItem.outLabel = outLabel;
-        //newItem.outInterface = outInterface;
+    for (auto& elem : lib) {
+        //if (elem.inLabel != inLabel)
+        if (elem.inLabel != inLabel /* || elem.inInterface != inInterface ???*/)
+            continue;
+        //elem.inInterface = inInterface;
+        //elem.outLabel = outLabel;
+        //elem.outInterface = outInterface;
         ForwardingEntry fwe { outLabel, outInterface, priority };
-        newItem.entries.push_back(fwe);
-        newItem.color = color;
-        lib.push_back(newItem);
-        emit(libTableChangedSignal, this);
-        return newItem.inLabel;
-    }
-    else {
-        for (auto& elem : lib) {
-            //if (elem.inLabel != inLabel)
-            if (elem.inLabel != inLabel /* || elem.inInterface != inInterface ???*/)
-                continue;
 
-            //elem.inInterface = inInterface;
-            //elem.outLabel = outLabel;
-            //elem.outInterface = outInterface;
-            ForwardingEntry fwe { outLabel, outInterface, priority };
-            
-            elem.entries.push_back(fwe);
-            elem.color = color;
-            emit(libTableChangedSignal, this);
-            return inLabel;
-        }
-        ASSERT(false);
+        elem.entries.push_back(fwe);
+        elem.color = color;
         emit(libTableChangedSignal, this);
-        return 0; // prevent warning
+        return inLabel;
     }
+    LibEntry newItem;
+    newItem.inLabel = inLabel;
+    newItem.inInterface = inInterface;
+
+    ForwardingEntry fwe { outLabel, outInterface, priority };
+    newItem.entries.push_back(fwe);
+    newItem.color = color;
+    lib.push_back(newItem);
+    emit(libTableChangedSignal, this);
+    return inLabel;
 }
 
 int LibTable::swapLibEntry(int inLabel, std::string inInterface, const LabelOpVector& outLabel,
@@ -375,6 +509,23 @@ int LibTable::swapLibEntry(int inLabel, std::string inInterface, const LabelOpVe
 
 int LibTable::removeLibEntry(int inLabel, std::string inInterface, int priority)
 {
+    for (unsigned int i = 0; i < lib.size(); i++) {
+        if (lib[i].inLabel != inLabel)
+            continue;
+
+        for (unsigned int j = 0; j < lib[i].entries.size(); j++)
+        {
+            if (lib[i].entries[j].priority != priority)
+                continue;
+            if(lib[i].entries.size() < 2)
+                lib.erase(lib.begin() + i);
+            else
+                lib[i].entries.erase(lib[i].entries.begin() + j);
+
+            emit(libTableChangedSignal, this);
+            return 0;
+        }
+    }
     return 0;
 }
 

@@ -46,17 +46,27 @@ void TwoPhaseCommit::update(const cXMLElement * updates)
     
     ASSERT(updates);
     ASSERT(!strcmp(updates->getTagName(), "twoPhaseCommit"));
-    checkTags(updates, "add remove reclassify");
-    for(cXMLElement* entry : updates->getChildrenByTagName("add"))
-    {
-        LibTable* libTable = (LibTable *)getModuleByPath(entry->getAttribute("router"))->getModuleByPath(".libTable");
-        libTable->updateLibTable(entry);
-    }
+    // Assert that all operations are add rule, remove rule or reclassify entry label of flow
+    checkTags(updates, "add remove swap reclassify");
+    // Apply remove rules
     for(cXMLElement* entry : updates->getChildrenByTagName("remove"))
     {
         LibTable* libTable = (LibTable *)getModuleByPath(entry->getAttribute("router"))->getModuleByPath(".libTable");
         libTable->updateLibTable(entry);
     }
+    // Apply swap rules
+    for(cXMLElement* entry : updates->getChildrenByTagName("swap"))
+    {
+        LibTable* libTable = (LibTable *)getModuleByPath(entry->getAttribute("router"))->getModuleByPath(".libTable");
+        libTable->updateLibTable(entry);
+    }
+    // Apply add rules
+    for(cXMLElement* entry : updates->getChildrenByTagName("add"))
+    {
+        LibTable* libTable = (LibTable *)getModuleByPath(entry->getAttribute("router"))->getModuleByPath(".libTable");
+        libTable->updateLibTable(entry);
+    }
+    // Apply reclassify rules
     
 }
 }
