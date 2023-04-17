@@ -23,6 +23,28 @@ namespace inet {
 
 Register_Class(Topology);
 
+int Topology::getDiameter()
+{
+    int currentDiameterGuess = 0;
+    int numNodes = getNumNodes();
+    for (int i = 0; i < numNodes; i++)
+    {
+        Topology::Node* currentTargetNode = getNode(i);
+        calculateUnweightedSingleShortestPathsTo(currentTargetNode);
+        for (int j = 0; j < numNodes; j++)
+        {
+            if (j == i)
+                continue;
+            Topology::Node* currentSourceNode = getNode(j);
+            if (currentDiameterGuess < currentSourceNode->getDistanceToTarget())
+                currentDiameterGuess = (int) currentSourceNode->getDistanceToTarget();
+        }
+    }
+    return currentDiameterGuess;
+    
+    
+}
+
 Topology::Link *Topology::Node::getLinkIn(int i) const
 {
     if (i < 0 || i >= (int)inLinks.size())

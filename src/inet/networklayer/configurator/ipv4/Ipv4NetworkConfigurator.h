@@ -128,6 +128,8 @@ class INET_API Ipv4NetworkConfigurator : public L3NetworkConfiguratorBase
      * The result of the computation is only stored in the network configurator.
      */
     virtual void computeConfiguration();
+    
+    virtual simtime_t networkFlushTime();
 
     /**
      * Configures all interfaces in the network based on the current network configuration.

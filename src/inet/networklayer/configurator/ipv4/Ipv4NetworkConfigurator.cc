@@ -33,6 +33,10 @@ Ipv4NetworkConfigurator::InterfaceInfo::InterfaceInfo(Node *node, LinkInfo *link
 {
 }
 
+simtime_t Ipv4NetworkConfigurator::networkFlushTime(){
+    return topology.getDiameter() * 0.1;
+}
+
 int Ipv4NetworkConfigurator::RoutingTableInfo::addRouteInfo(RouteInfo *routeInfo)
 {
     auto it = upper_bound(routeInfos.begin(), routeInfos.end(), routeInfo, routeInfoLessThan);

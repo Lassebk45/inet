@@ -7,6 +7,7 @@
 #include "inet/networklayer/mpls/LibTable.h"
 #include "inet/networklayer/rsvpte/RsvpClassifier.h"
 #include "inet/networklayer/rsvpte/RsvpTe.h"
+#include "inet/networklayer/configurator/ipv4/Ipv4NetworkConfigurator.h"
 
 
 
@@ -52,6 +53,17 @@ void TwoPhaseCommit::update(const cXMLElement * updates)
     ASSERT(!strcmp(updates->getTagName(), "twoPhaseCommit"));
     // Assert that all operations are add rule, remove rule or reclassify entry label of flow
     checkTags(updates, "add remove swap reclassify");
+    // Apply add rules
+    for(cXMLElement* entry : updates->getChildrenByTagName("add"))
+    {
+        LibTable* libTable = (LibTable *)getModuleByPath(entry->getAttribute("router"))->getModuleByPath(".libTable");
+        libTable->updateLibTable(entry);
+    }
+    
+    // Flush the network
+    Ipv4NetworkConfigurator* ipv4NetworkConfigurator = (Ipv4NetworkConfigurator *) getModuleByPath("configurator");
+    simtime_t networkFlushTime = ipv4NetworkConfigurator->networkFlushTime();
+    printf("networkFlushTime: %f\n", networkFlushTime.dbl());
     // Apply remove rules
     for(cXMLElement* entry : updates->getChildrenByTagName("remove"))
     {
@@ -60,12 +72,6 @@ void TwoPhaseCommit::update(const cXMLElement * updates)
     }
     // Apply swap rules
     for(cXMLElement* entry : updates->getChildrenByTagName("swap"))
-    {
-        LibTable* libTable = (LibTable *)getModuleByPath(entry->getAttribute("router"))->getModuleByPath(".libTable");
-        libTable->updateLibTable(entry);
-    }
-    // Apply add rules
-    for(cXMLElement* entry : updates->getChildrenByTagName("add"))
     {
         LibTable* libTable = (LibTable *)getModuleByPath(entry->getAttribute("router"))->getModuleByPath(".libTable");
         libTable->updateLibTable(entry);

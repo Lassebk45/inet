@@ -514,6 +514,8 @@ class INET_API Topology : public cOwnedObject
      * Returns the number of nodes in the graph.
      */
     int getNumNodes() const { return nodes.size(); }
+    
+    int getDiameter();
 
     /**
      * Returns pointer to the ith node in the graph. Node's methods
