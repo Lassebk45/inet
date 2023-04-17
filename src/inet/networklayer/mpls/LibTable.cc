@@ -99,7 +99,6 @@ void LibTable::handleMessage(cMessage * msg)
 void LibTable::updateLibTable(cXMLElement *updateElement){
     using namespace xmlutils;
     const char* updateType = updateElement->getTagName();
-    printf("updateType: %s\n", updateType);
     if (strcmp(updateType, "add") == 0)
     {
         checkTags(updateElement, "priority inLabel inRouter outRouter outLabel");

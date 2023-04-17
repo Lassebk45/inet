@@ -5,6 +5,10 @@
 #include "inet/p10/TwoPhaseCommit.h"
 #include "inet/common/XMLUtils.h"
 #include "inet/networklayer/mpls/LibTable.h"
+#include "inet/networklayer/rsvpte/RsvpClassifier.h"
+#include "inet/networklayer/rsvpte/RsvpTe.h"
+
+
 
 namespace inet {
 
@@ -67,6 +71,10 @@ void TwoPhaseCommit::update(const cXMLElement * updates)
         libTable->updateLibTable(entry);
     }
     // Apply reclassify rules
-    
+    for(cXMLElement* entry : updates->getChildrenByTagName("reclassify"))
+    {
+        RsvpClassifier* rsvpClassifier = (RsvpClassifier *)getModuleByPath(entry->getAttribute("router"))->getModuleByPath(".classifier");
+        rsvpClassifier->updateFecEntry(entry);
+    }
 }
 }

@@ -126,6 +126,13 @@ void RsvpClassifier::processCommand(const cXMLElement& node)
         ASSERT(false);
 }
 
+void RsvpClassifier::updateFecEntry(cXMLElement *updateElement)
+{
+    checkTags(updateElement, "id label destination source");
+    int fecid = getParameterIntValue(updateElement, "id");
+    readItemFromXML(updateElement);
+}
+
 // binding configuration
 
 void RsvpClassifier::readTableFromXML(const cXMLElement *fectable)
