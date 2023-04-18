@@ -46,7 +46,7 @@ void TwoPhaseCommit::handleMessage(cMessage* msg){
             scheduleAfter(networkFlushTime, secondPhaseMsg);
             
             // Delete the update file so it is not implemented multiple times.
-            // remove(updatePath);
+            remove(updatePath);
         }
 
         nextUpdateTime += par("updateInterval");
@@ -56,8 +56,6 @@ void TwoPhaseCommit::handleMessage(cMessage* msg){
     {
         TwoPhaseCommitMsg* updateMessage = (TwoPhaseCommitMsg*) msg;
         secondPhase(updateMessage->getUpdateElement());
-        delete updateMessage;
-        
     }
 }
 
