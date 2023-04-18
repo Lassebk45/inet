@@ -522,7 +522,6 @@ int LibTable::removeLibEntry(int inLabel, std::string inInterface, int priority)
                 lib[i].entries.erase(lib[i].entries.begin() + j);
 
             emit(libTableChangedSignal, this);
-            return 0;
         }
     }
     return 0;

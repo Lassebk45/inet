@@ -129,7 +129,7 @@ class INET_API Ipv4NetworkConfigurator : public L3NetworkConfiguratorBase
      */
     virtual void computeConfiguration();
     
-    virtual simtime_t networkFlushTime();
+    virtual simtime_t networkFlushTime(double flushConstant){return topology.getDiameter() * flushConstant / 1000;};
 
     /**
      * Configures all interfaces in the network based on the current network configuration.

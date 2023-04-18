@@ -8,6 +8,8 @@
 #include "inet/networklayer/rsvpte/RsvpClassifier.h"
 #include "inet/networklayer/rsvpte/RsvpTe.h"
 #include "inet/networklayer/configurator/ipv4/Ipv4NetworkConfigurator.h"
+#include "inet/p10/TwoPhaseCommitMsg_m.h"
+
 
 
 
@@ -19,6 +21,8 @@ void TwoPhaseCommit::initialize(){
     updatePath = par("updatePath");
     nextUpdateTime = par("updateInterval");
     updateTrigger = new cMessage();
+    secondPhaseMsg = new TwoPhaseCommitMsg();
+    
 
     if (nextUpdateTime > SIMTIME_ZERO)
     {
@@ -34,8 +38,13 @@ void TwoPhaseCommit::handleMessage(cMessage* msg){
             fclose(file);
 
             const cXMLElement * updates = getEnvir()->getXMLDocument(updatePath);
-            update(updates);
-
+            firstPhase(updates);
+            cancelEvent(secondPhaseMsg);
+            Ipv4NetworkConfigurator* ipv4NetworkConfigurator = (Ipv4NetworkConfigurator *) getModuleByPath("configurator");
+            simtime_t networkFlushTime = ipv4NetworkConfigurator->networkFlushTime(par("highestLatencyMS"));
+            secondPhaseMsg->setUpdateElement(updates);
+            scheduleAfter(networkFlushTime, secondPhaseMsg);
+            
             // Delete the update file so it is not implemented multiple times.
             // remove(updatePath);
         }
@@ -43,9 +52,16 @@ void TwoPhaseCommit::handleMessage(cMessage* msg){
         nextUpdateTime += par("updateInterval");
         scheduleAt(nextUpdateTime, updateTrigger);
     }
+    else if (dynamic_cast<TwoPhaseCommitMsg*>(msg))
+    {
+        TwoPhaseCommitMsg* updateMessage = (TwoPhaseCommitMsg*) msg;
+        secondPhase(updateMessage->getUpdateElement());
+        delete updateMessage;
+        
+    }
 }
 
-void TwoPhaseCommit::update(const cXMLElement * updates)
+void TwoPhaseCommit::firstPhase(const cXMLElement * updates)
 {
     using namespace xmlutils;
     
@@ -55,17 +71,6 @@ void TwoPhaseCommit::update(const cXMLElement * updates)
     checkTags(updates, "add remove swap reclassify");
     // Apply add rules
     for(cXMLElement* entry : updates->getChildrenByTagName("add"))
-    {
-        LibTable* libTable = (LibTable *)getModuleByPath(entry->getAttribute("router"))->getModuleByPath(".libTable");
-        libTable->updateLibTable(entry);
-    }
-    
-    // Flush the network
-    Ipv4NetworkConfigurator* ipv4NetworkConfigurator = (Ipv4NetworkConfigurator *) getModuleByPath("configurator");
-    simtime_t networkFlushTime = ipv4NetworkConfigurator->networkFlushTime();
-    printf("networkFlushTime: %f\n", networkFlushTime.dbl());
-    // Apply remove rules
-    for(cXMLElement* entry : updates->getChildrenByTagName("remove"))
     {
         LibTable* libTable = (LibTable *)getModuleByPath(entry->getAttribute("router"))->getModuleByPath(".libTable");
         libTable->updateLibTable(entry);
@@ -81,6 +86,24 @@ void TwoPhaseCommit::update(const cXMLElement * updates)
     {
         RsvpClassifier* rsvpClassifier = (RsvpClassifier *)getModuleByPath(entry->getAttribute("router"))->getModuleByPath(".classifier");
         rsvpClassifier->updateFecEntry(entry);
+    }
+    
+}
+
+void TwoPhaseCommit::secondPhase(const cXMLElement * updates)
+{
+    using namespace xmlutils;
+    
+    ASSERT(updates);
+    ASSERT(!strcmp(updates->getTagName(), "twoPhaseCommit"));
+    // Assert that all operations are add rule, remove rule or reclassify entry label of flow
+    checkTags(updates, "add remove swap reclassify");
+    
+    // Apply remove rules
+    for(cXMLElement* entry : updates->getChildrenByTagName("remove"))
+    {
+        LibTable* libTable = (LibTable *)getModuleByPath(entry->getAttribute("router"))->getModuleByPath(".libTable");
+        libTable->updateLibTable(entry);
     }
 }
 }

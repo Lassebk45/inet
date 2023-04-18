@@ -6,6 +6,7 @@
 #define INET_TWOPHASECOMMIT_H
 
 #include "inet/p10/json.hpp"
+#include "inet/p10/TwoPhaseCommitMsg_m.h"
 #include "inet/networklayer/mpls/LibTable.h"
 
 namespace inet {
@@ -13,13 +14,15 @@ namespace inet {
 class INET_API TwoPhaseCommit : public cSimpleModule {
     protected:
         cMessage* updateTrigger;
+        TwoPhaseCommitMsg* secondPhaseMsg;
         const char* updatePath;
         simtime_t nextUpdateTime;
 
     protected:
         virtual void initialize() override;
         virtual void handleMessage(cMessage* msg) override;
-        virtual void update(const cXMLElement * updates);
+        virtual void firstPhase(const cXMLElement * updates);
+        virtual void secondPhase(const cXMLElement * updates);
 };
 
 }
