@@ -129,8 +129,8 @@ void RsvpClassifier::processCommand(const cXMLElement& node)
 void RsvpClassifier::updateFecEntry(cXMLElement *updateElement)
 {
     checkTags(updateElement, "id label destination source");
-    int fecid = getParameterIntValue(updateElement, "id");
-    readItemFromXML(updateElement);
+    int fecid = findFECID(updateElement);
+    readItemFromXML(updateElement, fecid);
 }
 
 // binding configuration
@@ -143,6 +143,76 @@ void RsvpClassifier::readTableFromXML(const cXMLElement *fectable)
     cXMLElementList list = fectable->getChildrenByTagName("fecentry");
     for (auto& elem : list)
         readItemFromXML(elem);
+}
+
+void RsvpClassifier::readItemFromXML(const cXMLElement *fec, int fecid)
+{
+    ASSERT(fec);
+    ASSERT(!strcmp(fec->getTagName(), "fecentry") || !strcmp(fec->getTagName(), "bind-fec"));
+    
+    auto it = findFEC(fecid);
+    
+    if (getUniqueChildIfExists(fec, "label")) {
+        // bind-fec to label
+        checkTags(fec, "label destination source");
+        
+        EV_INFO << "binding to a given label" << endl;
+        
+        FecEntry newFec;
+        
+        newFec.id = fecid;
+        newFec.dest = getParameterIPAddressValue(fec, "destination");
+        newFec.src = getParameterIPAddressValue(fec, "source", Ipv4Address());
+        
+        newFec.inLabel = getParameterIntValue(fec, "label");
+        
+        if (it == bindings.end()) {
+            // create new binding
+            bindings.push_back(newFec);
+        }
+        else {
+            // update existing binding
+            *it = newFec;
+        }
+    }
+    else if (getUniqueChildIfExists(fec, "lspid")) {
+        // bind-fec to LSP
+        checkTags(fec, "id destination source tunnel_id extended_tunnel_id endpoint lspid");
+        
+        EV_INFO << "binding to a given path" << endl;
+        
+        FecEntry newFec;
+        
+        newFec.id = fecid;
+        newFec.dest = getParameterIPAddressValue(fec, "destination");
+        newFec.src = getParameterIPAddressValue(fec, "source", Ipv4Address());
+        
+        newFec.session.Tunnel_Id = getParameterIntValue(fec, "tunnel_id");
+        newFec.session.Extended_Tunnel_Id = getParameterIPAddressValue(fec, "extened_tunnel_id", routerId).getInt();
+        newFec.session.DestAddress = getParameterIPAddressValue(fec, "endpoint", newFec.dest); // ??? always use newFec.dest ???
+        
+        newFec.sender.Lsp_Id = getParameterIntValue(fec, "lspid");
+        newFec.sender.SrcAddress = routerId;
+        
+        newFec.inLabel = rsvp->getInLabel(newFec.session, newFec.sender);
+        
+        if (it == bindings.end()) {
+            // create new binding
+            bindings.push_back(newFec);
+        }
+        else {
+            // update existing binding
+            *it = newFec;
+        }
+    }
+    else {
+        // un-bind
+        checkTags(fec, "id");
+        
+        if (it != bindings.end()) {
+            bindings.erase(it);
+        }
+    }
 }
 
 void RsvpClassifier::readItemFromXML(const cXMLElement *fec)
@@ -215,6 +285,17 @@ void RsvpClassifier::readItemFromXML(const cXMLElement *fec)
             bindings.erase(it);
         }
     }
+}
+
+int RsvpClassifier::findFECID(cXMLElement* fec)
+{
+    //        newFec.dest = getParameterIPAddressValue(fec, "destination");
+    auto it = bindings.begin();
+    for (; it != bindings.end(); it++) {
+        if (it->dest == getParameterIPAddressValue(fec, "destination") && it->src == getParameterIPAddressValue(fec, "source"))
+            break;
+    }
+    return it->id;
 }
 
 std::vector<RsvpClassifier::FecEntry>::iterator RsvpClassifier::findFEC(int fecid)

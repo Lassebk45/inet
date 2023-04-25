@@ -67,9 +67,12 @@ class INET_API RsvpClassifier : public cSimpleModule, public IScriptable, public
   protected:
     virtual void readTableFromXML(const cXMLElement *fectable);
     virtual void readItemFromXML(const cXMLElement *fec);
+    virtual void readItemFromXML(const cXMLElement *fec, int fecid);
     std::vector<FecEntry>::iterator findFEC(int fecid);
+    int findFECID(cXMLElement* fec);
 
-    public:
+
+public:
         virtual void updateFecEntry(cXMLElement *updateElement);
 };
 
