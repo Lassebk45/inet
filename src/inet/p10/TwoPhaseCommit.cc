@@ -33,21 +33,26 @@ void TwoPhaseCommit::initialize(){
 void TwoPhaseCommit::handleMessage(cMessage* msg){
     if (msg == updateTrigger)
     {
+        FILE *file;
         // If the update file exists load the updates
-        if (FILE *file = fopen(updatePath, "r")) {
-            fclose(file);
+        while (!(file = fopen(updatePath, "r")))
+            sleep(1);
+        
+        fclose(file);
 
-            const cXMLElement * updates = getEnvir()->getXMLDocument(updatePath);
-            firstPhase(updates);
-            cancelEvent(secondPhaseMsg);
-            Ipv4NetworkConfigurator* ipv4NetworkConfigurator = (Ipv4NetworkConfigurator *) getModuleByPath("configurator");
-            simtime_t networkFlushTime = ipv4NetworkConfigurator->networkFlushTime(par("highestLatencyMS"));
-            secondPhaseMsg->setUpdateElement(updates);
-            scheduleAfter(networkFlushTime, secondPhaseMsg);
-            
-            // Delete the update file so it is not implemented multiple times.
-            remove(updatePath);
-        }
+        const cXMLElement * updates = getEnvir()->getXMLDocument(updatePath);
+        firstPhase(updates);
+        cancelEvent(secondPhaseMsg);
+        //Ipv4NetworkConfigurator* ipv4NetworkConfigurator = (Ipv4NetworkConfigurator *) getModuleByPath("configurator");
+        //simtime_t networkFlushTime = ipv4NetworkConfigurator->networkFlushTime(par("highestLatencyMS"));
+        //secondPhaseMsg->setUpdateElement(updates);
+        //scheduleAfter(networkFlushTime, secondPhaseMsg);
+        secondPhaseMsg->setUpdateElement(updates);
+        simtime_t updateInterval = par("updateInterval");
+        scheduleAfter(updateInterval * 0.9, secondPhaseMsg);
+        
+        // Delete the update file so it is not implemented multiple times.
+        remove(updatePath);
 
         nextUpdateTime += par("updateInterval");
         scheduleAt(nextUpdateTime, updateTrigger);
