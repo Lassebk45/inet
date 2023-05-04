@@ -33,13 +33,14 @@ void TwoPhaseCommit::initialize(){
 void TwoPhaseCommit::handleMessage(cMessage* msg){
     if (msg == updateTrigger)
     {
+        getEnvir()->forgetXMLDocument(updatePath);
+        
         FILE *file;
-        // If the update file exists load the updates
+        // Whenn the update file exists load the updates
         while (!(file = fopen(updatePath, "r")))
             sleep(1);
         
         fclose(file);
-
         const cXMLElement * updates = getEnvir()->getXMLDocument(updatePath);
         firstPhase(updates);
         cancelEvent(secondPhaseMsg);
@@ -52,22 +53,21 @@ void TwoPhaseCommit::handleMessage(cMessage* msg){
         scheduleAfter(updateInterval * 0.9, secondPhaseMsg);
         
         // Delete the update file so it is not implemented multiple times.
-        remove(updatePath);
-
+        //remove(updatePath);
+    
         nextUpdateTime += par("updateInterval");
         scheduleAt(nextUpdateTime, updateTrigger);
     }
-    else if (dynamic_cast<TwoPhaseCommitMsg*>(msg))
+    else if (msg == secondPhaseMsg)
     {
-        TwoPhaseCommitMsg* updateMessage = (TwoPhaseCommitMsg*) msg;
-        secondPhase(updateMessage->getUpdateElement());
+        //TwoPhaseCommitMsg* updateMessage = (TwoPhaseCommitMsg*) msg;
+        secondPhase(secondPhaseMsg->getUpdateElement());
     }
 }
 
 void TwoPhaseCommit::firstPhase(const cXMLElement * updates)
 {
     using namespace xmlutils;
-    
     ASSERT(updates);
     ASSERT(!strcmp(updates->getTagName(), "twoPhaseCommit"));
     // Assert that all operations are add rule, remove rule or reclassify entry label of flow
@@ -87,6 +87,7 @@ void TwoPhaseCommit::firstPhase(const cXMLElement * updates)
     // Apply reclassify rules
     for(cXMLElement* entry : updates->getChildrenByTagName("reclassify"))
     {
+        checkTags(entry, "label source destination");
         RsvpClassifier* rsvpClassifier = (RsvpClassifier *)getModuleByPath(entry->getAttribute("router"))->getModuleByPath(".classifier");
         rsvpClassifier->updateFecEntry(entry);
     }
@@ -96,12 +97,10 @@ void TwoPhaseCommit::firstPhase(const cXMLElement * updates)
 void TwoPhaseCommit::secondPhase(const cXMLElement * updates)
 {
     using namespace xmlutils;
-    
     ASSERT(updates);
     ASSERT(!strcmp(updates->getTagName(), "twoPhaseCommit"));
     // Assert that all operations are add rule, remove rule or reclassify entry label of flow
-    checkTags(updates, "add remove swap reclassify");
-    
+    //checkTags(updates, "add remove swap reclassify");
     // Apply remove rules
     for(cXMLElement* entry : updates->getChildrenByTagName("remove"))
     {

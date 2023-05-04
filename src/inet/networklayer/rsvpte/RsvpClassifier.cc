@@ -128,9 +128,24 @@ void RsvpClassifier::processCommand(const cXMLElement& node)
 
 void RsvpClassifier::updateFecEntry(cXMLElement *updateElement)
 {
-    checkTags(updateElement, "id label destination source");
-    int fecid = findFECID(updateElement);
-    readItemFromXML(updateElement, fecid);
+    checkTags(updateElement, "label destination source");
+    cXMLElement idElement("id", nullptr);
+    // if a fec for this source and destination exists, return it
+    for (auto it = bindings.begin(); it != bindings.end(); it++) {
+        // if fec exists
+        if (it->dest == getParameterIPAddressValue(updateElement, "destination") && it->src == getParameterIPAddressValue(updateElement, "source"))
+        {
+            idElement.setNodeValue(std::to_string(it->id).c_str());
+            updateElement->appendChild(&idElement);
+            bindings.erase(it);
+            readItemFromXML(updateElement);
+            return;
+        }
+        
+    }
+    idElement.setNodeValue(std::to_string(bindings.size()).c_str());
+    updateElement->appendChild(&idElement);
+    readItemFromXML(updateElement);
 }
 
 // binding configuration
@@ -147,6 +162,7 @@ void RsvpClassifier::readTableFromXML(const cXMLElement *fectable)
 
 void RsvpClassifier::readItemFromXML(const cXMLElement *fec, int fecid)
 {
+    
     ASSERT(fec);
     ASSERT(!strcmp(fec->getTagName(), "fecentry") || !strcmp(fec->getTagName(), "bind-fec"));
     
@@ -285,17 +301,6 @@ void RsvpClassifier::readItemFromXML(const cXMLElement *fec)
             bindings.erase(it);
         }
     }
-}
-
-int RsvpClassifier::findFECID(cXMLElement* fec)
-{
-    //        newFec.dest = getParameterIPAddressValue(fec, "destination");
-    auto it = bindings.begin();
-    for (; it != bindings.end(); it++) {
-        if (it->dest == getParameterIPAddressValue(fec, "destination") && it->src == getParameterIPAddressValue(fec, "source"))
-            break;
-    }
-    return it->id;
 }
 
 std::vector<RsvpClassifier::FecEntry>::iterator RsvpClassifier::findFEC(int fecid)
