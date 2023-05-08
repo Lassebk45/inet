@@ -51,9 +51,8 @@ void TwoPhaseCommit::handleMessage(cMessage* msg){
         secondPhaseMsg->setUpdateElement(updates);
         simtime_t updateInterval = par("updateInterval");
         scheduleAfter(updateInterval * 0.9, secondPhaseMsg);
-        
         // Delete the update file so it is not implemented multiple times.
-        //remove(updatePath);
+        remove(updatePath);
     
         nextUpdateTime += par("updateInterval");
         scheduleAt(nextUpdateTime, updateTrigger);

@@ -121,21 +121,18 @@ void MeasureWriter::handleMessage(cMessage* msg)
 
 void MeasureWriter::writeUtilization()
 {
-    linkUtilizations["timestamp"] = SIMTIME_DBL(nextWriteTime);
     std::ofstream o("utilization.json");
     o << std::setw(4) << linkUtilizations << std::endl;
 }
 
 void MeasureWriter::writeDemands()
 {
-    demands["timestamp"] = SIMTIME_DBL(nextWriteTime);
     std::ofstream o("demands.json");
     o << std::setw(4) << demands << std::endl;
 }
 
 void MeasureWriter::writeLibTables()
 {
-    demands["timestamp"] = SIMTIME_DBL(nextWriteTime);
     std::ofstream o("libTables.json");
     o << std::setw(4) << libTables << std::endl;
 }
