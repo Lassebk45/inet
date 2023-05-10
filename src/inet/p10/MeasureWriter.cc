@@ -111,38 +111,25 @@ void MeasureWriter::handleMessage(cMessage* msg)
 {
     if (msg == writeTrigger)
     {
-        writeUtilization();
-        writeDemands();
-        writeLibTables();
+        writeMeasures();
         nextWriteTime = nextWriteTime + writeInterval;
         scheduleAt(nextWriteTime, writeTrigger);
     }
 }
 
-void MeasureWriter::writeUtilization()
+void MeasureWriter::writeMeasures()
 {
     std::ofstream o("utilization.json");
     o << std::setw(4) << linkUtilizations << std::endl;
     o.close();
-    sleep(5);
-    std::ofstream myFile("utilization_done.json");
-    myFile.close();
-}
-
-void MeasureWriter::writeDemands()
-{
-    std::ofstream o("demands.json");
-    o << std::setw(4) << demands << std::endl;
-    o.close();
-    sleep(5);
+    std::ofstream oo("demands.json");
+    oo << std::setw(4) << demands << std::endl;
+    oo.close();
+    sleep(3);
     std::ofstream myFile("demands_done.json");
+    std::ofstream myFile2("utilization_done.json");
     myFile.close();
-}
-
-void MeasureWriter::writeLibTables()
-{
-    std::ofstream o("libTables.json");
-    o << std::setw(4) << libTables << std::endl;
+    myFile2.close();
 }
 
 std::string labelOpCodeToString(LabelOpCode code)
