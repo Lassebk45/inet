@@ -124,6 +124,7 @@ void MeasureWriter::writeUtilization()
     std::ofstream o("utilization.json");
     o << std::setw(4) << linkUtilizations << std::endl;
     o.close();
+    sleep(5);
     std::ofstream myFile("utilization_done.json");
     myFile.close();
 }
@@ -133,6 +134,7 @@ void MeasureWriter::writeDemands()
     std::ofstream o("demands.json");
     o << std::setw(4) << demands << std::endl;
     o.close();
+    sleep(5);
     std::ofstream myFile("demands_done.json");
     myFile.close();
 }
