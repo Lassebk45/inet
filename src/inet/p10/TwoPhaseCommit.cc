@@ -40,11 +40,12 @@ void TwoPhaseCommit::handleMessage(cMessage* msg){
         while (!(file = fopen(updatePath, "r")))
         {
             std::cout << "Waiting for two phase commit file.." << endl;
-            sleep(2.5);
+            sleep(1);
         }
-        std::cout << "File received, continuing" << endl;
         fclose(file);
+        sleep(2);
         const cXMLElement * updates = getEnvir()->getXMLDocument(updatePath);
+        std::cout << "File received, continuing" << endl;
         firstPhase(updates);
         cancelEvent(secondPhaseMsg);
         //Ipv4NetworkConfigurator* ipv4NetworkConfigurator = (Ipv4NetworkConfigurator *) getModuleByPath("configurator");
