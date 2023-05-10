@@ -37,13 +37,12 @@ void TwoPhaseCommit::handleMessage(cMessage* msg){
         
         FILE *file;
         // When the update file exists load the updates
+        std::cout << "Waiting for two phase commit file.." << endl;
         while (!(file = fopen(updatePath, "r")))
         {
-            std::cout << "Waiting for two phase commit file.." << endl;
             sleep(1);
         }
         fclose(file);
-        sleep(2);
         const cXMLElement * updates = getEnvir()->getXMLDocument(updatePath);
         std::cout << "File received, continuing" << endl;
         firstPhase(updates);
