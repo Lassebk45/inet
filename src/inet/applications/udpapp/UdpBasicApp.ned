@@ -29,6 +29,9 @@ import inet.applications.contract.IApp;
 simple UdpBasicApp like IApp
 {
     parameters:
+        double jitter = default(0.0);
+        string sendIntervals = default("");
+        string sendIntervalStartTimes = default("");
         string interfaceTableModule;   // The path to the InterfaceTable module
         string clockModule = default(""); // relative path of a module that implements IClock; optional
         int localPort = default(-1);  // local port (-1: use ephemeral port)

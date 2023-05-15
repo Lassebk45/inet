@@ -25,6 +25,11 @@ extern template class ClockUserModuleMixin<ApplicationBase>;
 class INET_API UdpBasicApp : public ClockUserModuleMixin<ApplicationBase>, public UdpSocket::ICallback
 {
   protected:
+    bool dynamicSendIntervals = false;
+    std::vector<double> sendIntervals;
+    std::vector<double> sendIntervalStartTimes;
+    std::vector<double> sendIntervalSlope;
+    int sendIntervalIndex = 0;
     simsignal_t sendIntervalChangedSignal;
     enum SelfMsgKinds { START = 1, SEND, STOP };
 
@@ -70,6 +75,8 @@ class INET_API UdpBasicApp : public ClockUserModuleMixin<ApplicationBase>, publi
     virtual void socketDataArrived(UdpSocket *socket, Packet *packet) override;
     virtual void socketErrorArrived(UdpSocket *socket, Indication *indication) override;
     virtual void socketClosed(UdpSocket *socket) override;
+    
+    virtual clocktime_t computeNextSendInterval();
 
   public:
     UdpBasicApp() {}

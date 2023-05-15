@@ -45,10 +45,45 @@ void UdpBasicApp::initialize(int stage)
         stopTime = par("stopTime");
         packetName = par("packetName");
         dontFragment = par("dontFragment");
+    
         if (stopTime >= CLOCKTIME_ZERO && stopTime < startTime)
             throw cRuntimeError("Invalid startTime/stopTime parameters");
         selfMsg = new ClockEvent("sendTimer");
+        
+        // Check if dynamic demands are being used
+        std::string sendIntervalString = par("sendIntervals");
+        if (sendIntervalString != ""){
+            std::vector<std::string> sendIntervalsStringVector = opp_split(par("sendIntervals"), " ");
+            std::vector<std::string> sendIntervalStartTimesStringVector = opp_split(par("sendIntervalStartTimes"), " ");
+            // Assert equal lengths
+            ASSERT(sendIntervalsStringVector.size() == sendIntervalStartTimesStringVector.size());
+    
+            for (int i = 0; i < sendIntervalsStringVector.size(); i++){
+                double _sendInterval = std::stod(sendIntervalsStringVector[i]);
+                double _sendIntervalStartTime = std::stod(sendIntervalStartTimesStringVector[i]);
+                sendIntervals.push_back(_sendInterval);
+                sendIntervalStartTimes.push_back(_sendIntervalStartTime);
+            }
+            for (int i = 0; i < sendIntervals.size() - 1; i++){
+                double slope = (sendIntervals[i + 1] - sendIntervals[i]) / (sendIntervalStartTimes[i + 1] - sendIntervalStartTimes[i]);
+                sendIntervalSlope.push_back(slope);
+            }
+            
+    
+            // Assert that start times are in ascending order
+            std::vector<double>::iterator pos =  std::adjacent_find (sendIntervalStartTimes.begin(), sendIntervalStartTimes.end(),   // range
+                                                                     std::greater<double>());
+            if (pos == sendIntervalStartTimes.end())
+            {
+            }
+            else
+            {
+                throw cRuntimeError("SendIntervalStartTimes are not sorted in ascending order");
+            }
+            dynamicSendIntervals = true;
+        }
     }
+    
 }
 
 void UdpBasicApp::finish()
@@ -156,13 +191,14 @@ void UdpBasicApp::processStart()
 void UdpBasicApp::processSend()
 {
     sendPacket();
-    clocktime_t d = par("sendInterval");
-    if (d != oldSendInterval)
-    {
-        emit(sendIntervalChangedSignal, SIMTIME_DBL(d), this);
-    }
-    oldSendInterval = d;
-    if (stopTime < CLOCKTIME_ZERO || getClockTime() + d < stopTime) {
+    clocktime_t d;
+    
+    if(!dynamicSendIntervals)
+        d = par("sendInterval");
+    else
+        d = computeNextSendInterval();
+        
+    if (stopTime < CLOCKTIME_ZERO || getClockTime() + d < stopTime){
         selfMsg->setKind(SEND);
         scheduleClockEventAfter(d, selfMsg);
     }
@@ -170,6 +206,13 @@ void UdpBasicApp::processSend()
         selfMsg->setKind(STOP);
         scheduleClockEventAt(stopTime, selfMsg);
     }
+    
+    if (d != oldSendInterval)
+    {
+        emit(sendIntervalChangedSignal, SIMTIME_DBL(d), this);
+    }
+    oldSendInterval = d;
+    
 }
 
 void UdpBasicApp::processStop()
@@ -258,6 +301,24 @@ void UdpBasicApp::handleCrashOperation(LifecycleOperation *operation)
 {
     cancelClockEvent(selfMsg);
     socket.destroy(); // TODO  in real operating systems, program crash detected by OS and OS closes sockets of crashed programs.
+}
+
+clocktime_t UdpBasicApp::computeNextSendInterval()
+{
+    clocktime_t currentTime = getClockTime();
+    if (sendIntervalIndex == sendIntervalStartTimes.size() - 1)
+        return sendIntervals[sendIntervalIndex];
+    
+    double nextStartTime = sendIntervalStartTimes[sendIntervalIndex + 1];
+    double currentStartTime = sendIntervalStartTimes[sendIntervalIndex];
+    double nextSendInterval = sendIntervals[sendIntervalIndex] + (nextStartTime - currentStartTime) * sendIntervalSlope[sendIntervalIndex];
+    double nextSendTime = currentTime.dbl() + nextSendInterval;
+    if (nextSendTime > nextStartTime){
+        sendIntervalIndex += 1;
+        return nextStartTime - currentTime.dbl();
+    }
+        
+    return nextSendInterval;
 }
 
 } // namespace inet
