@@ -17,6 +17,7 @@
 #include "inet/networklayer/common/NetworkInterface.h"
 
 #include "inet/p10/LibTableUpdate_m.h"
+#include "inet/networklayer/configurator/ipv4/Ipv4NetworkConfigurator.h"
 
 namespace inet {
 
@@ -24,11 +25,31 @@ Define_Module(LibTable);
 
 void LibTable::initialize(int stage)
 {
+    
     cSimpleModule::initialize(stage);
 
     if (stage == INITSTAGE_LOCAL) {
         maxLabel = 0;
         WATCH_VECTOR(lib);
+    
+        // Get MPLS Router module
+        cModule* mplsRouter = this->getParentModule();
+        const char* thisRouterName = mplsRouter->getFullName();
+        // Get indexes of all gates that are connected to other MPLS routers
+        for (int i = 0; i < mplsRouter->gateSize("pppg$o"); i++)
+        {
+            cModule *otherModule = mplsRouter->gate("pppg$o", i)->getNextGate()->getOwnerModule();
+            std::string otherModuleType = otherModule->getModuleType()->getFullName();
+            // If the other module is also an MPLS router then it is a link in the network topology and we save i
+            if (otherModuleType.find("MplsRouter") != std::string::npos){
+                const char* otherRouterName = otherModule->getFullName();
+                routerToPppGate.insert({otherRouterName, "ppp" + std::to_string(i)});
+            }
+        }
+        // Add the loopback interface
+        routerToPppGate.insert({thisRouterName, "mlo0"});
+        // Add the rule for any incoming router
+        routerToPppGate.insert({"any", "any"});
     }
     else if (stage == INITSTAGE_NETWORK_LAYER) {
         libTableChangedSignal = registerSignal("libTableChanged");
@@ -112,7 +133,6 @@ void LibTable::updateLibTable(cXMLElement *updateElement){
             const char *code = op.getAttribute("code");
             ASSERT(code);
             LabelOp l;
-        
             if (!strcmp(code, "push")) {
                 l.optcode = PUSH_OPER;
                 ASSERT(val);
@@ -138,51 +158,12 @@ void LibTable::updateLibTable(cXMLElement *updateElement){
         const char* targetRouter = getParameterStrValue(updateElement, "outRouter");
         const char* inRouter = getParameterStrValue(updateElement, "inRouter");
     
-    
         // Find the outgoing interface
-        std::string outInterface = "";
-        if (strcmp(sourceRouter, targetRouter) == 0)
-        {
-            outInterface = "mlo0";
-        }
-        else
-        {
-            for (int i = 0; i < this->getParentModule()->gateSize("pppg$o"); i++)
-            {
-                if (strcmp(targetRouter, this->getParentModule()->gate("pppg$o", i)->getNextGate()->getOwnerModule()->getFullName()) == 0)
-                {
-                    outInterface = "ppp" + std::to_string(i);
-                    break;
-                }
-            }
-            if (strcmp(outInterface.c_str(), "") == 0){
-                throw cRuntimeError("Cannot find the outInterface connecting router %s to router %s", sourceRouter, targetRouter);
-            }
-        }
+        std::string outInterface = routerToPppGate.at(targetRouter);
         //
         // Get the inInterface
-        std::string inInterface = "";
-        if (strcmp(inRouter, "any") == 0)
-        {
-            inInterface = "any";
-        }
-        else
-        {
-            for (int i = 0; i < this->getParentModule()->gateSize("pppg$o"); i++)
-            {
-                if (strcmp(inRouter, this->getParentModule()->gate("pppg$o", i)->getNextGate()->getOwnerModule()->getFullName()) == 0)
-                {
-                    //printf("inRouter: %s\n", this->getParentModule()->gate("pppg$o", i)->getNextGate()->getOwnerModule()->getFullName());
-    
-                    inInterface = "ppp" + std::to_string(i);
-                    //printf("inInterface: %s\n", inInterface.c_str());
-                    break;
-                }
-            }
-            if (strcmp(inInterface.c_str(), "") == 0){
-                throw cRuntimeError("Cannot find inInterface connecting router %s to router %s", inRouter, sourceRouter);
-            }
-        }
+        std::string inInterface = routerToPppGate.at(inRouter);
+        
         
         // Add the rule
         installLibEntry(getParameterIntValue(updateElement, "inLabel"), inInterface.c_str(), opsVector, outInterface.c_str(), 1, getParameterIntValue(updateElement, "priority"));
@@ -193,28 +174,7 @@ void LibTable::updateLibTable(cXMLElement *updateElement){
         const char* sourceRouter = updateElement->getAttribute("router");
         const char* inRouter = getParameterStrValue(updateElement, "inRouter");
         // Convert inRouter to inInterface
-        std::string inInterface = "";
-        if (strcmp(inRouter, "any") == 0)
-        {
-            inInterface = "any";
-        }
-        else
-        {
-            for (int i = 0; i < this->getParentModule()->gateSize("pppg$o"); i++)
-            {
-                if (strcmp(inRouter, this->getParentModule()->gate("pppg$o", i)->getNextGate()->getOwnerModule()->getFullName()) == 0)
-                {
-                    //printf("inRouter: %s\n", this->getParentModule()->gate("pppg$o", i)->getNextGate()->getOwnerModule()->getFullName());
-
-                    inInterface = "ppp" + std::to_string(i);
-                    //printf("inInterface: %s\n", inInterface.c_str());
-                    break;
-                }
-            }
-            if (strcmp(inInterface.c_str(), "") == 0){
-                throw cRuntimeError("Cannot find inInterface connecting router %s to router %s", inRouter, sourceRouter);
-            }
-        }
+        std::string inInterface = routerToPppGate.at(inRouter);
 
         removeLibEntry(getParameterIntValue(updateElement, "inLabel"), inInterface.c_str(), getParameterIntValue(updateElement, "priority"));
 
@@ -225,28 +185,7 @@ void LibTable::updateLibTable(cXMLElement *updateElement){
         const char* sourceRouter = updateElement->getAttribute("router");
         const char* inRouter = getParameterStrValue(updateElement, "inRouter");
         // Convert inRouter to inInterface
-        std::string inInterface = "";
-        if (strcmp(inRouter, "any") == 0)
-        {
-            inInterface = "any";
-        }
-        else
-        {
-            for (int i = 0; i < this->getParentModule()->gateSize("pppg$o"); i++)
-            {
-                if (strcmp(inRouter, this->getParentModule()->gate("pppg$o", i)->getNextGate()->getOwnerModule()->getFullName()) == 0)
-                {
-                    //printf("inRouter: %s\n", this->getParentModule()->gate("pppg$o", i)->getNextGate()->getOwnerModule()->getFullName());
-
-                    inInterface = "ppp" + std::to_string(i);
-                    //printf("inInterface: %s\n", inInterface.c_str());
-                    break;
-                }
-            }
-            if (strcmp(inInterface.c_str(), "") == 0){
-                throw cRuntimeError("Cannot find inInterface connecting router %s to router %s", inRouter, sourceRouter);
-            }
-        }
+        std::string inInterface = routerToPppGate.at(inRouter);
 
         removeLibEntry(getParameterIntValue(updateElement, "inLabel"), inInterface.c_str(), getParameterIntValue(updateElement, "priority"));
 
@@ -260,7 +199,7 @@ void LibTable::updateLibTable(cXMLElement *updateElement){
             const char *code = op.getAttribute("code");
             ASSERT(code);
             LabelOp l;
-
+        
             if (!strcmp(code, "push")) {
                 l.optcode = PUSH_OPER;
                 ASSERT(val);
@@ -286,49 +225,8 @@ void LibTable::updateLibTable(cXMLElement *updateElement){
 
 
         // Find the outgoing interface
-        std::string outInterface = "";
-        if (strcmp(sourceRouter, targetRouter) == 0)
-        {
-            outInterface = "mlo0";
-        }
-        else
-        {
-            for (int i = 0; i < this->getParentModule()->gateSize("pppg$o"); i++)
-            {
-                if (strcmp(targetRouter, this->getParentModule()->gate("pppg$o", i)->getNextGate()->getOwnerModule()->getFullName()) == 0)
-                {
-                    outInterface = "ppp" + std::to_string(i);
-                    break;
-                }
-            }
-            if (strcmp(outInterface.c_str(), "") == 0){
-                throw cRuntimeError("Cannot find the outInterface connecting router %s to router %s", sourceRouter, targetRouter);
-            }
-        }
+        std::string outInterface = routerToPppGate.at(targetRouter);
         //
-        // Get the inInterface
-        inInterface = "";
-        if (strcmp(inRouter, "any") == 0)
-        {
-            inInterface = "any";
-        }
-        else
-        {
-            for (int i = 0; i < this->getParentModule()->gateSize("pppg$o"); i++)
-            {
-                if (strcmp(inRouter, this->getParentModule()->gate("pppg$o", i)->getNextGate()->getOwnerModule()->getFullName()) == 0)
-                {
-                    //printf("inRouter: %s\n", this->getParentModule()->gate("pppg$o", i)->getNextGate()->getOwnerModule()->getFullName());
-
-                    inInterface = "ppp" + std::to_string(i);
-                    //printf("inInterface: %s\n", inInterface.c_str());
-                    break;
-                }
-            }
-            if (strcmp(inInterface.c_str(), "") == 0){
-                throw cRuntimeError("Cannot find inInterface connecting router %s to router %s", inRouter, sourceRouter);
-            }
-        }
 
         // Add the rule
         installLibEntry(getParameterIntValue(updateElement, "inLabel"), inInterface.c_str(), opsVector, outInterface.c_str(), 1, getParameterIntValue(updateElement, "priority"));

@@ -63,6 +63,7 @@ class INET_API LibTable : public cSimpleModule
 
     simsignal_t libTableChangedSignal;
     cMessage* updateMessage;
+    std::map<std::string, std::string> routerToPppGate;
 
   protected:
     virtual void initialize(int stage) override;

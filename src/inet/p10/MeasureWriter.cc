@@ -24,7 +24,7 @@ void MeasureWriter::receiveSignal(cComponent *source, simsignal_t signalID, doub
         std::string tgtRouter = _source->getSourceGate()->getNextGate()->getOwner()->getFullName();
         updateUtilization(srcRouter, tgtRouter, d);
     }
-    else if (signalID == sendIntervalChangedSignal)
+    if (signalID == sendIntervalChangedSignal)
     {
         UdpBasicApp* udpApp = (UdpBasicApp*) details;
         updateDemands(udpApp, d);
@@ -33,11 +33,7 @@ void MeasureWriter::receiveSignal(cComponent *source, simsignal_t signalID, doub
 
 void MeasureWriter::receiveSignal(cComponent *source, simsignal_t signalID, cObject *obj, cObject *details)
 {
-    if (signalID == libTableChangedSignal)
-    {
-        LibTable* libTableModule = (LibTable *) obj;
-        updateLibTable(libTableModule);
-    }
+    ;
 }
 void MeasureWriter::initialize()
 {
@@ -48,6 +44,7 @@ void MeasureWriter::initialize()
     getSimulation()->getSystemModule()->subscribe(utilSignal, this);
     getSimulation()->getSystemModule()->subscribe(sendIntervalChangedSignal, this);
     getSimulation()->getSystemModule()->subscribe(libTableChangedSignal, this);
+    getSimulation()->getSystemModule()->subscribe(POST_MODEL_CHANGE, this);
     writeInterval = par("writeInterval");
     
     nextWriteTime = SIMTIME_ZERO + writeInterval;
@@ -74,39 +71,6 @@ void MeasureWriter::updateDemands(UdpBasicApp* app, double sendInterval)
     demands[source][targetRouters[0]] = sendInterval;
 }
 
-void MeasureWriter::updateLibTable(LibTable * libTable)
-{
-    /*std::string router = libTable->getParentModule()->getFullName();
-    for (auto libEntry : libTable->getLibTable())
-    {
-        for (LibTable::ForwardingEntry forwardingEntry : libEntry.entries)
-        {
-            // The following lines is an extremely ad hoc way of finding the target router of the forwarding entry.
-            std::string nextHop;
-            std::string outInterface = forwardingEntry.outInterface;
-            if (outInterface == "mlo0")
-            {
-                nextHop = router;
-            }
-            else if (outInterface.substr(0,3) == "ppp")
-            {
-                int pppGate = std::atoi(outInterface.substr(3).c_str());
-                nextHop = libTable->getParentModule()->gate("pppg$o", pppGate)->getNextGate()->getOwnerModule()->getFullName();
-            }
-            else
-            {
-                throw "exception";
-            }
-            std::vector<std::pair<int, std::string>> labelOperations;
-            labelOperations.resize(forwardingEntry.outLabel.size());
-            std::transform(forwardingEntry.outLabel.begin(), forwardingEntry.outLabel.end(), labelOperations.begin(),
-                           [](LabelOp l) -> std::pair<int, std::string> {return std::make_pair(l.label, labelOpCodeToString(l.optcode));});
-
-            libTables[router][std::to_string(libEntry.inLabel)][std::to_string(forwardingEntry.priority)] = {nextHop, labelOperations};
-        }
-    }*/
-}
-
 void MeasureWriter::handleMessage(cMessage* msg)
 {
     if (msg == writeTrigger)
@@ -125,11 +89,6 @@ void MeasureWriter::writeMeasures()
     std::ofstream oo("demands.json");
     oo << std::setw(4) << demands << std::endl;
     oo.close();
-    sleep(3);
-    std::ofstream myFile("demands_done.json");
-    std::ofstream myFile2("utilization_done.json");
-    myFile.close();
-    myFile2.close();
 }
 
 std::string labelOpCodeToString(LabelOpCode code)

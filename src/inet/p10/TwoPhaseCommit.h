@@ -11,7 +11,7 @@
 
 namespace inet {
 
-class INET_API TwoPhaseCommit : public cSimpleModule {
+    class INET_API TwoPhaseCommit : public cSimpleModule {
     protected:
         cMessage* updateTrigger;
         TwoPhaseCommitMsg* secondPhaseMsg;
@@ -23,6 +23,7 @@ class INET_API TwoPhaseCommit : public cSimpleModule {
         virtual void handleMessage(cMessage* msg) override;
         virtual void firstPhase(const cXMLElement * updates);
         virtual void secondPhase(const cXMLElement * updates);
+        
 };
 
 }

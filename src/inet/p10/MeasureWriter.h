@@ -31,7 +31,6 @@ class INET_API MeasureWriter : public cSimpleModule, public cListener {
         virtual void initialize() override;
         virtual void updateUtilization(std::string src, std::string tgt, double utilization);
         virtual void updateDemands(UdpBasicApp* app, double sendInterval);
-        virtual void updateLibTable(LibTable * libTable);
         virtual void handleMessage(cMessage* msg) override;
         virtual void writeMeasures();
 };

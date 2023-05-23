@@ -9,20 +9,18 @@
 #include "inet/networklayer/rsvpte/RsvpTe.h"
 #include "inet/networklayer/configurator/ipv4/Ipv4NetworkConfigurator.h"
 #include "inet/p10/TwoPhaseCommitMsg_m.h"
-
-
-
+#include "inet/linklayer/ppp/Ppp.h"
 
 namespace inet {
 
 Define_Module(TwoPhaseCommit);
+
 
 void TwoPhaseCommit::initialize(){
     updatePath = par("updatePath");
     nextUpdateTime = par("updateInterval");
     updateTrigger = new cMessage();
     secondPhaseMsg = new TwoPhaseCommitMsg();
-    
 
     if (nextUpdateTime > SIMTIME_ZERO)
     {
@@ -37,14 +35,13 @@ void TwoPhaseCommit::handleMessage(cMessage* msg){
         
         FILE *file;
         // When the update file exists load the updates
-        std::cout << "Waiting for two phase commit file.." << endl;
         while (!(file = fopen(updatePath, "r")))
         {
             sleep(1);
+            std::cout << "Waiting for updateFile" << std::endl;
         }
         fclose(file);
         const cXMLElement * updates = getEnvir()->getXMLDocument(updatePath);
-        std::cout << "File received, continuing" << endl;
         firstPhase(updates);
         cancelEvent(secondPhaseMsg);
         //Ipv4NetworkConfigurator* ipv4NetworkConfigurator = (Ipv4NetworkConfigurator *) getModuleByPath("configurator");
@@ -69,6 +66,7 @@ void TwoPhaseCommit::handleMessage(cMessage* msg){
 
 void TwoPhaseCommit::firstPhase(const cXMLElement * updates)
 {
+    
     using namespace xmlutils;
     ASSERT(updates);
     ASSERT(!strcmp(updates->getTagName(), "twoPhaseCommit"));
@@ -93,7 +91,6 @@ void TwoPhaseCommit::firstPhase(const cXMLElement * updates)
         RsvpClassifier* rsvpClassifier = (RsvpClassifier *)getModuleByPath(entry->getAttribute("router"))->getModuleByPath(".classifier");
         rsvpClassifier->updateFecEntry(entry);
     }
-    
 }
 
 void TwoPhaseCommit::secondPhase(const cXMLElement * updates)
