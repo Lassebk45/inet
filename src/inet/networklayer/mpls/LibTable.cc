@@ -45,19 +45,20 @@ void LibTable::initialize(int stage)
             if (otherModuleType.find("MplsRouter") != std::string::npos){
                 const char* otherRouterName = otherModule->getFullName();
                 routerToPppGate.insert({otherRouterName, "ppp" + std::to_string(i)});
-                pppGateToRouter.insert({"ppp" + std::to_string(i), otherRouterName});
+                /*pppGateToRouter.insert({"ppp" + std::to_string(i), otherRouterName});
                 // Get adjacent link capacities
                 cChannel *channel = thisGate->getTransmissionChannel();
                 if (dynamic_cast<cDatarateChannel *>(channel)) {
                     cDatarateChannel *datarateChannel = (cDatarateChannel *) channel;
                     double datarate = datarateChannel->getDatarate();
                     routerToCapacity.insert({otherRouterName, datarate});
-                }
+                }*/
             }
         }
         // Add the loopback interface
         routerToPppGate.insert({thisRouterName, "mlo0"});
-        pppGateToRouter.insert({"mlo0", thisRouterName});
+        routerToPppGate.insert({"any", "any"});
+        //pppGateToRouter.insert({"mlo0", thisRouterName});
     }
     else if (stage == INITSTAGE_NETWORK_LAYER) {
         libTableChangedSignal = registerSignal("libTableChanged");
