@@ -51,7 +51,6 @@ void LibTable::initialize(int stage)
                 if (dynamic_cast<cDatarateChannel *>(channel)) {
                     cDatarateChannel *datarateChannel = (cDatarateChannel *) channel;
                     double datarate = datarateChannel->getDatarate();
-                    std::cout << "datarate: " << datarate << std::endl;
                     routerToCapacity.insert({otherRouterName, datarate});
                 }
             }
@@ -324,8 +323,6 @@ bool LibTable::resolveLabel(std::string inInterface, int inLabel,
         it = minimum_entries.begin();
         std::advance( it, std::rand() % minimum_entries.size() );
         // END ECMP CODE
-        for (auto it: minimum_entries)
-            std::cout << it.outInterface << std::endl;
         outLabel = it->outLabel;
         outInterface = it->outInterface;
         EV_ERROR << "Using ("<<outLabel <<","<<outInterface<<")"<< endl;
