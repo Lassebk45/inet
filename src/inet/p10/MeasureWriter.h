@@ -25,6 +25,8 @@ class INET_API MeasureWriter : public cSimpleModule, public cListener {
         simtime_t writeInterval;
         cMessage* writeTrigger = new cMessage();
         simtime_t nextWriteTime;
+        const char* demandPath;
+        const char* utilizationPath;
     protected:
         virtual void receiveSignal(cComponent *source, simsignal_t signalID, double d, cObject *details) override;
         virtual void receiveSignal(cComponent *source, simsignal_t signalID, cObject *obj, cObject *details) override;

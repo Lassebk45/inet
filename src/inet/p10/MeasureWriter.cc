@@ -46,6 +46,8 @@ void MeasureWriter::initialize()
     getSimulation()->getSystemModule()->subscribe(libTableChangedSignal, this);
     getSimulation()->getSystemModule()->subscribe(POST_MODEL_CHANGE, this);
     writeInterval = par("writeInterval");
+    demandPath = par("demandPath");
+    utilizationPath = par("utilizationPath");
     
     nextWriteTime = SIMTIME_ZERO + writeInterval;
     scheduleAt(nextWriteTime, writeTrigger);
@@ -83,10 +85,10 @@ void MeasureWriter::handleMessage(cMessage* msg)
 
 void MeasureWriter::writeMeasures()
 {
-    std::ofstream o("utilization.json");
+    std::ofstream o(utilizationPath);
     o << std::setw(4) << linkUtilizations << std::endl;
     o.close();
-    std::ofstream oo("demands.json");
+    std::ofstream oo(demandPath);
     oo << std::setw(4) << demands << std::endl;
     oo.close();
 }
