@@ -38,18 +38,27 @@ void LibTable::initialize(int stage)
         // Get indexes of all gates that are connected to other MPLS routers
         for (int i = 0; i < mplsRouter->gateSize("pppg$o"); i++)
         {
-            cModule *otherModule = mplsRouter->gate("pppg$o", i)->getNextGate()->getOwnerModule();
+            cGate *thisGate = mplsRouter->gate("pppg$o", i);
+            cModule *otherModule = thisGate->getNextGate()->getOwnerModule();
             std::string otherModuleType = otherModule->getModuleType()->getFullName();
             // If the other module is also an MPLS router then it is a link in the network topology and we save i
             if (otherModuleType.find("MplsRouter") != std::string::npos){
                 const char* otherRouterName = otherModule->getFullName();
                 routerToPppGate.insert({otherRouterName, "ppp" + std::to_string(i)});
+                pppGateToRouter.insert({"ppp" + std::to_string(i), otherRouterName});
+                // Get adjacent link capacities
+                cChannel *channel = thisGate->getTransmissionChannel();
+                if (dynamic_cast<cDatarateChannel *>(channel)) {
+                    cDatarateChannel *datarateChannel = (cDatarateChannel *) channel;
+                    double datarate = datarateChannel->getDatarate();
+                    std::cout << "datarate: " << datarate << std::endl;
+                    routerToCapacity.insert({otherRouterName, datarate});
+                }
             }
         }
         // Add the loopback interface
         routerToPppGate.insert({thisRouterName, "mlo0"});
-        // Add the rule for any incoming router
-        routerToPppGate.insert({"any", "any"});
+        pppGateToRouter.insert({"mlo0", thisRouterName});
     }
     else if (stage == INITSTAGE_NETWORK_LAYER) {
         libTableChangedSignal = registerSignal("libTableChanged");
@@ -311,12 +320,12 @@ bool LibTable::resolveLabel(std::string inInterface, int inLabel,
         std::copy_if(valid_entries.begin(), valid_entries.end(), std::back_inserter(minimum_entries), [min_priority](const auto&e){
            return e.priority == min_priority;
         });
-
         // Note: Not the best way to do it, just proof of concept ...
         it = minimum_entries.begin();
         std::advance( it, std::rand() % minimum_entries.size() );
         // END ECMP CODE
-
+        for (auto it: minimum_entries)
+            std::cout << it.outInterface << std::endl;
         outLabel = it->outLabel;
         outInterface = it->outInterface;
         EV_ERROR << "Using ("<<outLabel <<","<<outInterface<<")"<< endl;
