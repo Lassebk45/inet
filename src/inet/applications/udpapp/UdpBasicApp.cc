@@ -192,7 +192,6 @@ void UdpBasicApp::processSend()
 {
     sendPacket();
     clocktime_t d;
-    
     if(!dynamicSendIntervals)
         d = par("sendInterval");
     else
@@ -309,23 +308,17 @@ clocktime_t UdpBasicApp::computeNextSendInterval()
     if (sendIntervalIndex == sendIntervalStartTimes.size() - 1)
         return sendIntervals[sendIntervalIndex];
     
-    
     double nextStartTime = sendIntervalStartTimes[sendIntervalIndex + 1];
     while (nextStartTime < currentTime.dbl() && sendIntervalIndex < sendIntervalStartTimes.size() - 1){
         sendIntervalIndex++;
         nextStartTime = sendIntervalStartTimes[sendIntervalIndex + 1];
     }
-    if (sendIntervalStartTimes.size() - 1)
+    if (sendIntervalIndex == sendIntervalStartTimes.size() - 1)
         return sendIntervals[sendIntervalIndex];
     
     double currentStartTime = sendIntervalStartTimes[sendIntervalIndex];
     double nextSendInterval = sendIntervals[sendIntervalIndex] + (currentTime.dbl() - currentStartTime) * sendIntervalSlope[sendIntervalIndex];
     double nextSendTime = currentTime.dbl() + nextSendInterval;
-    std::cout << "nextStartTime: " << nextStartTime << std::endl;
-    std::cout << "currentStartTime: " << currentStartTime << std::endl;
-    std::cout << "nextSendInterval: " << nextSendInterval << std::endl;
-    std::cout << "nextSendTime: " << nextSendTime << std::endl;
-    std::cout << "currentTime: " << currentTime << std::endl;
     
     if (nextSendTime > nextStartTime){
         sendIntervalIndex += 1;
