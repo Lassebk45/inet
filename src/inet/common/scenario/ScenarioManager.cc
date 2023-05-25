@@ -55,7 +55,8 @@ static const char *OP_RESUME = "resume";
 void ScenarioManager::initialize()
 {
     cXMLElement *script = par("script");
-
+    linkFailure = registerSignal("linkFailure");
+    linkReconnected = registerSignal("linkReconnected");
     numChanges = numDone = 0;
     WATCH(numChanges);
     WATCH(numDone);
@@ -375,6 +376,16 @@ void ScenarioManager::createConnection(const cXMLElementList& paramList, cChanne
 
         // connect:
         srcGate->connectTo(destGate, channel);
+        cObject* src = srcGate->getOwner();
+        cObject* dest = srcGate->getNextGate()->getOwner();
+        if (dynamic_cast<cModule*>(src) && dynamic_cast<cModule*>(src)){
+            cModule *srcMod = (cModule *)src;
+            cModule *destMod = (cModule *)src;
+            std::string srcModType = srcMod->getModuleType()->getFullName();
+            std::string destModType = destMod->getModuleType()->getFullName();
+            if (srcModType.find("MplsRouter") != std::string::npos && destModType.find("MplsRouter") != std::string::npos)
+                emit(linkReconnected, srcGate);
+        }
     }
 }
 
@@ -419,13 +430,22 @@ void ScenarioManager::processConnectCommand(const cXMLElement *node)
     if (isSrcGateInOut && isDestGateInOut) {
         destGate = srcMod->gateHalf(srcGateName.c_str(), cGate::INPUT, srcGateIndex);
         srcGate = destMod->gateHalf(destGateName.c_str(), cGate::OUTPUT, destGateIndex);
-
         createConnection(paramList, channelType, srcGate, destGate);
     }
 }
 
 void ScenarioManager::disconnect(cGate *srcGate)
 {
+    cObject* src = srcGate->getOwner();
+    cObject* dest = srcGate->getNextGate()->getOwner();
+    if (dynamic_cast<cModule*>(src) && dynamic_cast<cModule*>(src)){
+        cModule *srcMod = (cModule *)src;
+        cModule *destMod = (cModule *)src;
+        std::string srcModType = srcMod->getModuleType()->getFullName();
+        std::string destModType = destMod->getModuleType()->getFullName();
+        if (srcModType.find("MplsRouter") != std::string::npos && destModType.find("MplsRouter") != std::string::npos)
+            emit(linkFailure, srcGate);
+    }
     srcGate->disconnect();
 }
 
@@ -470,7 +490,7 @@ void ScenarioManager::processLifecycleCommand(const cXMLElement *node)
     operation->initialize(module, paramsCopy);
     if (!paramsCopy.empty())
         throw cRuntimeError("Unknown parameter '%s' for operation %s", paramsCopy.begin()->first.c_str(), operationName.c_str());
-
+    
     // do the operation
     initiateOperation(operation);
 }

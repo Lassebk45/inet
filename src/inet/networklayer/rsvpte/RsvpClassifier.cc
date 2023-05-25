@@ -76,7 +76,6 @@ bool RsvpClassifier::lookupLabel(Packet *packet, LabelOpVector& outLabel, std::s
 
         if (elem.inLabel < 0)
             return false;
-
         bool ret = lt->resolveLabel("", elem.inLabel, outLabel, outInterface, color);
         // TODO:
         // Actually push the MPLS label. Thus, we do not require extra rules.

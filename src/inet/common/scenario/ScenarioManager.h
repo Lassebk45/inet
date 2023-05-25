@@ -56,6 +56,8 @@ class INET_API ScenarioManager : public cSimpleModule, public LifecycleControlle
     cPar& getChannelParam(cGate *srcGate, const char *name);
     void disconnect(cGate *srcGate);
     void createConnection(const cXMLElementList& paramList, cChannelType *channelType, cGate *srcGate, cGate *destGate);
+    simsignal_t linkFailure;
+    simsignal_t linkReconnected;
 
     // dispatch to command processors
     virtual void processCommand(const cXMLElement *node);

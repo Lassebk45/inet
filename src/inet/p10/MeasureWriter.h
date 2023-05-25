@@ -16,10 +16,13 @@ class INET_API MeasureWriter : public cSimpleModule, public cListener {
         simsignal_t utilSignal;
         simsignal_t sendIntervalChangedSignal;
         simsignal_t libTableChangedSignal;
+        simsignal_t linkFailure;
+        simsignal_t linkReconnected;
 
         nlohmann::json linkUtilizations;
         nlohmann::json demands;
         nlohmann::json libTables;
+        std::set<std::pair<std::string, std::string>> downLinks;
 
         simtime_t lastUpdate = SIMTIME_ZERO;
         simtime_t writeInterval;
@@ -27,6 +30,8 @@ class INET_API MeasureWriter : public cSimpleModule, public cListener {
         simtime_t nextWriteTime;
         const char* demandPath;
         const char* utilizationPath;
+        const char* linkFailuresPath;
+        
     protected:
         virtual void receiveSignal(cComponent *source, simsignal_t signalID, double d, cObject *details) override;
         virtual void receiveSignal(cComponent *source, simsignal_t signalID, cObject *obj, cObject *details) override;

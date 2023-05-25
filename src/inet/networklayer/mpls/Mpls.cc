@@ -251,7 +251,6 @@ void Mpls::processMplsPacketFromL2(Packet *packet)
     LabelOpVector outLabel;
     std::string outInterface;
     int color;
-
     bool found = lt->resolveLabel(incomingInterfaceName, mplsHeader->getLabel(), outLabel, outInterface, color);
     if (!found) {
         EV_INFO << "discarding packet, incoming label not resolved" << endl;

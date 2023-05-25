@@ -6,6 +6,7 @@
 #include "inet/p10/json.hpp"
 #include "inet/applications/udpapp/UdpBasicApp.h"
 #include "inet/networklayer/mpls/LibTable.h"
+#include <iostream>
 
 #include <iomanip>
 #include <string>
@@ -33,21 +34,41 @@ void MeasureWriter::receiveSignal(cComponent *source, simsignal_t signalID, doub
 
 void MeasureWriter::receiveSignal(cComponent *source, simsignal_t signalID, cObject *obj, cObject *details)
 {
-    ;
+    if (signalID == linkFailure){
+        cGate* gate = (cGate *)obj;
+        cModule *src = (cModule *)gate->getOwner();
+        cModule *dest = (cModule *)gate->getNextGate()->getOwner();
+        std::string srcName = src->getName();
+        std::string destName = dest->getName();
+        downLinks.insert(std::make_pair(srcName, destName));
+    }
+    if (signalID == linkReconnected){
+        cGate* gate = (cGate *)obj;
+        cModule *src = (cModule *)gate->getOwner();
+        cModule *dest = (cModule *)gate->getNextGate()->getOwner();
+        std::string srcName = src->getName();
+        std::string destName = dest->getName();
+        downLinks.erase(std::make_pair(srcName, destName));
+    }
 }
 void MeasureWriter::initialize()
 {
     utilSignal = registerSignal("utilization");
     sendIntervalChangedSignal = registerSignal("sendIntervalChanged");
     libTableChangedSignal = registerSignal("libTableChanged");
+    linkFailure = registerSignal("linkFailure");
+    linkReconnected = registerSignal("linkReconnected");
 
     getSimulation()->getSystemModule()->subscribe(utilSignal, this);
     getSimulation()->getSystemModule()->subscribe(sendIntervalChangedSignal, this);
-    getSimulation()->getSystemModule()->subscribe(libTableChangedSignal, this);
+    //getSimulation()->getSystemModule()->subscribe(libTableChangedSignal, this);
     getSimulation()->getSystemModule()->subscribe(POST_MODEL_CHANGE, this);
+    getSimulation()->getSystemModule()->subscribe(linkFailure, this);
+    getSimulation()->getSystemModule()->subscribe(linkReconnected, this);
     writeInterval = par("writeInterval");
     demandPath = par("demandPath");
     utilizationPath = par("utilizationPath");
+    linkFailuresPath = par("linkFailuresPath");
     
     nextWriteTime = SIMTIME_ZERO + writeInterval;
     scheduleAt(nextWriteTime, writeTrigger);
@@ -91,6 +112,14 @@ void MeasureWriter::writeMeasures()
     std::ofstream oo(demandPath);
     oo << std::setw(4) << demands << std::endl;
     oo.close();
+    std::ofstream ooo(linkFailuresPath);
+    ooo << "[" << std::endl;
+    for (std::pair<std::string, std::string> link: downLinks){
+        ooo << "[\"" << link.first << "\", \"" << link.second << "\"], " << std::endl;
+    }
+    ooo << "]" << std::endl;
+    ooo.close();
+    getchar();
 }
 
 std::string labelOpCodeToString(LabelOpCode code)
