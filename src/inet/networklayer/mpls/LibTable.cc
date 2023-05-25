@@ -45,20 +45,21 @@ void LibTable::initialize(int stage)
             if (otherModuleType.find("MplsRouter") != std::string::npos){
                 const char* otherRouterName = otherModule->getFullName();
                 routerToPppGate.insert({otherRouterName, "ppp" + std::to_string(i)});
-                /*pppGateToRouter.insert({"ppp" + std::to_string(i), otherRouterName});
+                pppGateToRouter.insert({"ppp" + std::to_string(i), otherRouterName});
                 // Get adjacent link capacities
                 cChannel *channel = thisGate->getTransmissionChannel();
                 if (dynamic_cast<cDatarateChannel *>(channel)) {
                     cDatarateChannel *datarateChannel = (cDatarateChannel *) channel;
                     double datarate = datarateChannel->getDatarate();
                     routerToCapacity.insert({otherRouterName, datarate});
-                }*/
+                }
             }
         }
         // Add the loopback interface
         routerToPppGate.insert({thisRouterName, "mlo0"});
         routerToPppGate.insert({"any", "any"});
-        //pppGateToRouter.insert({"mlo0", thisRouterName});
+        pppGateToRouter.insert({"mlo0", thisRouterName});
+        routerToCapacity.insert({thisRouterName, 1});
     }
     else if (stage == INITSTAGE_NETWORK_LAYER) {
         libTableChangedSignal = registerSignal("libTableChanged");
@@ -313,7 +314,7 @@ bool LibTable::resolveLabel(std::string inInterface, int inLabel,
         if( it == valid_entries.end())
             return false;
 
-        // Implementation of ECMP -- currently just a proof of concept.
+        /*// Implementation of ECMP -- currently just a proof of concept.
         // NOTE: Very experimental code ...
         int min_priority = it->priority;
         std::vector<ForwardingEntry> minimum_entries;
@@ -323,7 +324,31 @@ bool LibTable::resolveLabel(std::string inInterface, int inLabel,
         // Note: Not the best way to do it, just proof of concept ...
         it = minimum_entries.begin();
         std::advance( it, std::rand() % minimum_entries.size() );
-        // END ECMP CODE
+        // END ECMP CODE*/
+        
+        // Implementation of weighted cost multipath
+        int min_priority = it->priority;
+        std::vector<ForwardingEntry> minimum_entries;
+        std::copy_if(valid_entries.begin(), valid_entries.end(), std::back_inserter(minimum_entries), [min_priority](const auto&e){
+           return e.priority == min_priority;
+        });
+        // Note: Not the best way to do it, just proof of concept ...
+        // Get the weighed sum
+        double sum = 0;
+        for (ForwardingEntry ent: minimum_entries){
+            std::string outRouter = pppGateToRouter.at(ent.outInterface);
+            sum += routerToCapacity.at(outRouter);
+        }
+        // Roll a random number:
+        double stopPoint = std::rand() % int(sum);
+        it = minimum_entries.begin();
+        double linkCapacity = routerToCapacity.at(pppGateToRouter.at(it->outInterface));
+        stopPoint -= linkCapacity;
+        while(stopPoint > 0){
+            std::advance(it, 1);
+            linkCapacity = routerToCapacity.at(pppGateToRouter.at(it->outInterface));
+            stopPoint -= linkCapacity;
+        }
         outLabel = it->outLabel;
         outInterface = it->outInterface;
         EV_ERROR << "Using ("<<outLabel <<","<<outInterface<<")"<< endl;
