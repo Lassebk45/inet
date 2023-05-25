@@ -112,11 +112,11 @@ void MeasureWriter::writeMeasures()
     oo << std::setw(4) << demands << std::endl;
     oo.close();
     std::ofstream ooo(linkFailuresPath);
-    ooo << "[" << std::endl;
+    ooo << "[";
     for (std::pair<std::string, std::string> link: downLinks){
         ooo << "[\"" << link.first << "\", \"" << link.second << "\"], ";
     }
-    ooo << "]" << std::endl;
+    ooo << "]";
     ooo.close();
 }
 
