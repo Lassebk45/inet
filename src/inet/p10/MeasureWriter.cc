@@ -6,7 +6,6 @@
 #include "inet/p10/json.hpp"
 #include "inet/applications/udpapp/UdpBasicApp.h"
 #include "inet/networklayer/mpls/LibTable.h"
-#include <iostream>
 
 #include <iomanip>
 #include <string>
@@ -119,7 +118,6 @@ void MeasureWriter::writeMeasures()
     }
     ooo << "]" << std::endl;
     ooo.close();
-    getchar();
 }
 
 std::string labelOpCodeToString(LabelOpCode code)
