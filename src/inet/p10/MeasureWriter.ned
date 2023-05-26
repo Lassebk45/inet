@@ -5,5 +5,5 @@ simple MeasureWriter{
         double writeInterval @mutable = default(5s) @unit(s);
         string demandPath = default("demands.json");
         string utilizationPath = default("utilization.json");
-        string linkFailuresPath = default("linkFailures.json");
+        string linkFailuresPath = default("linkFailures.yml");
 }
