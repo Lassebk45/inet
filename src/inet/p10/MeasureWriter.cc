@@ -10,6 +10,7 @@
 #include <iomanip>
 #include <string>
 #include <fstream>
+#include <sstream>
 
 namespace inet {
 
@@ -111,12 +112,16 @@ void MeasureWriter::writeMeasures()
     std::ofstream oo(demandPath);
     oo << std::setw(4) << demands << std::endl;
     oo.close();
-    std::ofstream ooo(linkFailuresPath);
-    ooo << "[";
+    
+    std::ostringstream outString;
+    outString << "[";
     for (std::pair<std::string, std::string> link: downLinks){
-        ooo << "[\"" << link.first << "\", \"" << link.second << "\"], ";
+        outString << "[\"" << link.first << "\", \"" << link.second << "\"], ";
     }
-    ooo << "]";
+    outString << "]";
+    
+    std::ofstream ooo(linkFailuresPath);
+    ooo << outString.str();
     ooo.close();
 }
 

@@ -10,6 +10,7 @@
 #include "inet/networklayer/configurator/ipv4/Ipv4NetworkConfigurator.h"
 #include "inet/p10/TwoPhaseCommitMsg_m.h"
 #include "inet/linklayer/ppp/Ppp.h"
+#include <ctime>
 
 namespace inet {
 
@@ -36,12 +37,11 @@ void TwoPhaseCommit::handleMessage(cMessage* msg){
         FILE *file;
         // When the update file exists load the updates
         std::cout << "Waiting for 2-phase-commit file" << std::endl;
-        while (!(file = fopen(updatePath, "r")))
+        while (!(( access( updatePath, F_OK ) != -1 )))
         {
             sleep(1);
         }
         std::cout << "2-phase-commit file received" << std::endl;
-        fclose(file);
         const cXMLElement * updates = getEnvir()->getXMLDocument(updatePath);
         firstPhase(updates);
         cancelEvent(secondPhaseMsg);
