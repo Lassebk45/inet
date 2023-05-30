@@ -41,6 +41,7 @@ void TwoPhaseCommit::handleMessage(cMessage* msg){
         {
             sleep(1);
         }
+        std::time_t beforeTime = std::time(nullptr);
         std::cout << "2-phase-commit file received" << std::endl;
         const cXMLElement * updates = getEnvir()->getXMLDocument(updatePath);
         firstPhase(updates);
@@ -57,11 +58,15 @@ void TwoPhaseCommit::handleMessage(cMessage* msg){
     
         nextUpdateTime += par("updateInterval");
         scheduleAt(nextUpdateTime, updateTrigger);
+        std::time_t afterTime = std::time(nullptr);
+        std::cout << "Time to install new paths:" << afterTime - beforeTime << std::endl;
     }
     else if (msg == secondPhaseMsg)
     {
-        //TwoPhaseCommitMsg* updateMessage = (TwoPhaseCommitMsg*) msg;
+        std::time_t beforeTime = std::time(nullptr);
         secondPhase(secondPhaseMsg->getUpdateElement());
+        std::time_t afterTime = std::time(nullptr);
+        std::cout << "Time to remove old paths:" << afterTime - beforeTime << std::endl;
     }
 }
 
