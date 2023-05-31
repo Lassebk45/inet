@@ -65,7 +65,7 @@ class INET_API LibTable : public cSimpleModule
     cMessage* updateMessage;
     std::map<std::string, std::string> routerToPppGate;
     std::map<std::string, std::string> pppGateToRouter;
-    std::map<std::string, double> routerToCapacity;
+    std::map<std::string, double> routerToWeight;
   protected:
     virtual void initialize(int stage) override;
     virtual int numInitStages() const override { return NUM_INIT_STAGES; }
@@ -92,6 +92,8 @@ class INET_API LibTable : public cSimpleModule
 
     std::vector<LibEntry> *getLibTable(){return &this->lib;}
     virtual void updateLibTable(cXMLElement *updateElement);
+
+    virtual void updateLinkWeight(std::string dest, double weight);
 
     // utility
     static LabelOpVector pushLabel(int label);

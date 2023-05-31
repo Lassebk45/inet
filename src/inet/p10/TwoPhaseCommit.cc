@@ -4,7 +4,7 @@
 
 #include "inet/p10/TwoPhaseCommit.h"
 #include "inet/common/XMLUtils.h"
-#include "inet/networklayer/mpls/LibTable.h"
+    #include "inet/networklayer/mpls/LibTable.h"
 #include "inet/networklayer/rsvpte/RsvpClassifier.h"
 #include "inet/networklayer/rsvpte/RsvpTe.h"
 #include "inet/networklayer/configurator/ipv4/Ipv4NetworkConfigurator.h"
@@ -41,6 +41,7 @@ void TwoPhaseCommit::handleMessage(cMessage* msg){
         {
             sleep(1);
         }
+        
         std::time_t beforeTime = std::time(nullptr);
         std::cout << "2-phase-commit file received" << std::endl;
         const cXMLElement * updates = getEnvir()->getXMLDocument(updatePath);

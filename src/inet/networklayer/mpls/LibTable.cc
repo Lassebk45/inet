@@ -51,7 +51,7 @@ void LibTable::initialize(int stage)
                 if (dynamic_cast<cDatarateChannel *>(channel)) {
                     cDatarateChannel *datarateChannel = (cDatarateChannel *) channel;
                     double datarate = datarateChannel->getDatarate();
-                    routerToCapacity.insert({otherRouterName, datarate});
+                    routerToWeight.insert({otherRouterName, datarate});
                 }
             }
         }
@@ -59,13 +59,17 @@ void LibTable::initialize(int stage)
         routerToPppGate.insert({thisRouterName, "mlo0"});
         routerToPppGate.insert({"any", "any"});
         pppGateToRouter.insert({"mlo0", thisRouterName});
-        routerToCapacity.insert({thisRouterName, 1});
+        routerToWeight.insert({thisRouterName, 1});
     }
     else if (stage == INITSTAGE_NETWORK_LAYER) {
         libTableChangedSignal = registerSignal("libTableChanged");
         readTableFromXML(par("config"));
     }
 
+}
+
+void LibTable::updateLinkWeight(std::string dest, double weight){
+    routerToWeight[dest] = weight;
 }
 
 void LibTable::handleMessage(cMessage * msg)
@@ -310,10 +314,17 @@ bool LibTable::resolveLabel(std::string inInterface, int inLabel,
         auto it = std::min_element(valid_entries.begin(), valid_entries.end(), [](const auto& e1, const auto& e2){
             return e1.priority < e2.priority;
         });
-
-        if( it == valid_entries.end())
+        if(it == valid_entries.end())
             return false;
-
+        else if (next(it) == valid_entries.end()){
+            outLabel = it->outLabel;
+            outInterface = it->outInterface;
+    
+            color = elem.color;
+    
+            return true;
+        }
+        
         /*// Implementation of ECMP -- currently just a proof of concept.
         // NOTE: Very experimental code ...
         int min_priority = it->priority;
@@ -327,6 +338,7 @@ bool LibTable::resolveLabel(std::string inInterface, int inLabel,
         // END ECMP CODE*/
         
         // Implementation of weighted cost multipath
+    
         int min_priority = it->priority;
         std::vector<ForwardingEntry> minimum_entries;
         std::copy_if(valid_entries.begin(), valid_entries.end(), std::back_inserter(minimum_entries), [min_priority](const auto&e){
@@ -337,16 +349,16 @@ bool LibTable::resolveLabel(std::string inInterface, int inLabel,
         double sum = 0;
         for (ForwardingEntry ent: minimum_entries){
             std::string outRouter = pppGateToRouter.at(ent.outInterface);
-            sum += routerToCapacity.at(outRouter);
+            sum += routerToWeight.at(outRouter);
         }
         // Roll a random number:
         double stopPoint = std::rand() % int(sum);
         it = minimum_entries.begin();
-        double linkCapacity = routerToCapacity.at(pppGateToRouter.at(it->outInterface));
+        double linkCapacity = routerToWeight.at(pppGateToRouter.at(it->outInterface));
         stopPoint -= linkCapacity;
         while(stopPoint > 0){
             std::advance(it, 1);
-            linkCapacity = routerToCapacity.at(pppGateToRouter.at(it->outInterface));
+            linkCapacity = routerToWeight.at(pppGateToRouter.at(it->outInterface));
             stopPoint -= linkCapacity;
         }
         outLabel = it->outLabel;
