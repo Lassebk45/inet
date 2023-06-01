@@ -25,19 +25,19 @@ using namespace xmlutils;
 void RsvpClassifier::initialize(int stage)
 {
     cSimpleModule::initialize(stage);
-
+    
     if (stage == INITSTAGE_LOCAL) {
         maxLabel = 0;
         WATCH_VECTOR(bindings);
     }
-    // TODO INITSTAGE
+        // TODO INITSTAGE
     else if (stage == INITSTAGE_ROUTING_PROTOCOLS) {
         IIpv4RoutingTable *rt = getModuleFromPar<IIpv4RoutingTable>(par("routingTableModule"), this);
         routerId = rt->getRouterId();
-
+        
         lt.reference(this, "libTableModule", true);
         rsvp.reference(this, "rsvpModule", true);
-
+        
         readTableFromXML(par("config"));
     }
 }
@@ -53,49 +53,66 @@ bool RsvpClassifier::lookupLabel(Packet *packet, LabelOpVector& outLabel, std::s
 {
     // never label OSPF(TED) and RSVP traffic
     const auto& ipv4Header = packet->peekAtFront<Ipv4Header>();
-
+    
     switch (ipv4Header->getProtocolId()) {
         case IP_PROT_OSPF:
         case IP_PROT_RSVP:
             return false;
-
+        
         default:
             break;
     }
-
+    
     // forwarding decision for non-labeled datagrams
-
+    std::cout << "this->getParentModule()->getName(): " << this->getParentModule()->getName() << std::endl;
     for (auto& elem : bindings) {
+        
         if (!elem.dest.isUnspecified() && !elem.dest.equals(ipv4Header->getDestAddress()))
             continue;
-
+        
         if (!elem.src.isUnspecified() && !elem.src.equals(ipv4Header->getSrcAddress()))
             continue;
-
+        std::cout << "elem.weightedInLabels.size(): " << elem.weightedInLabels.size() << std::endl;
+        std::cout << "elem.id: " << elem.id << std::endl;
+        
         EV_DETAIL << "packet belongs to fecid=" << elem.id << endl;
-
-        if (elem.inLabel < 0)
-            return false;
-        bool ret = lt->resolveLabel("", elem.inLabel, outLabel, outInterface, color);
+        //if (elem.inLabel < 0)
+        //    return false;
+        
+        int inLabel;
+        // get the label randomly
+        if (!elem.weightedInLabels.empty()){
+            double stopPoint = std::rand() % elem.totalWeight;
+            auto it = elem.weightedInLabels.begin();
+            stopPoint -= it->second;
+            while(stopPoint > 0){
+                std::advance(it, 1);
+                stopPoint -= it->second;
+            }
+            inLabel = it->first;
+        }
+        else
+            inLabel = elem.inLabel;
+        bool ret = lt->resolveLabel("", inLabel, outLabel, outInterface, color);
         // TODO:
         // Actually push the MPLS label. Thus, we do not require extra rules.
         // NOTE: This might break other code ...
         if (ret){
-
+            
             auto mplsHeader = makeShared<MplsHeader>();
             mplsHeader->setLabel(elem.inLabel);
-
+            
             // Push header:
             packet->trimFront();
             mplsHeader->setS(packet->getTag<PacketProtocolTag>()->getProtocol()->getId() != Protocol::mpls.getId());
             packet->insertAtFront(mplsHeader);
             packet->addTagIfAbsent<PacketProtocolTag>()->setProtocol(&Protocol::mpls);
-
+            
         }
         // End modification
         return ret;
     }
-
+    
     return false;
 }
 
@@ -106,10 +123,10 @@ void RsvpClassifier::bind(const SessionObj& session, const SenderTemplateObj& se
     for (auto& elem : bindings) {
         if (elem.session != session)
             continue;
-
+        
         if (elem.sender != sender)
             continue;
-
+        
         elem.inLabel = inLabel;
     }
 }
@@ -161,7 +178,6 @@ void RsvpClassifier::readTableFromXML(const cXMLElement *fectable)
 
 void RsvpClassifier::readItemFromXML(const cXMLElement *fec, int fecid)
 {
-    
     ASSERT(fec);
     ASSERT(!strcmp(fec->getTagName(), "fecentry") || !strcmp(fec->getTagName(), "bind-fec"));
     
@@ -234,25 +250,25 @@ void RsvpClassifier::readItemFromXML(const cXMLElement *fec)
 {
     ASSERT(fec);
     ASSERT(!strcmp(fec->getTagName(), "fecentry") || !strcmp(fec->getTagName(), "bind-fec"));
-
+    
     int fecid = getParameterIntValue(fec, "id");
-
+    
     auto it = findFEC(fecid);
-
+    
     if (getUniqueChildIfExists(fec, "label")) {
         // bind-fec to label
         checkTags(fec, "id label destination source");
-
+        
         EV_INFO << "binding to a given label" << endl;
-
+        
         FecEntry newFec;
-
+        
         newFec.id = fecid;
         newFec.dest = getParameterIPAddressValue(fec, "destination");
         newFec.src = getParameterIPAddressValue(fec, "source", Ipv4Address());
-
+        
         newFec.inLabel = getParameterIntValue(fec, "label");
-
+        
         if (it == bindings.end()) {
             // create new binding
             bindings.push_back(newFec);
@@ -265,24 +281,54 @@ void RsvpClassifier::readItemFromXML(const cXMLElement *fec)
     else if (getUniqueChildIfExists(fec, "lspid")) {
         // bind-fec to LSP
         checkTags(fec, "id destination source tunnel_id extended_tunnel_id endpoint lspid");
-
+        
         EV_INFO << "binding to a given path" << endl;
-
+        
         FecEntry newFec;
-
+        
         newFec.id = fecid;
         newFec.dest = getParameterIPAddressValue(fec, "destination");
         newFec.src = getParameterIPAddressValue(fec, "source", Ipv4Address());
-
+        
         newFec.session.Tunnel_Id = getParameterIntValue(fec, "tunnel_id");
         newFec.session.Extended_Tunnel_Id = getParameterIPAddressValue(fec, "extened_tunnel_id", routerId).getInt();
         newFec.session.DestAddress = getParameterIPAddressValue(fec, "endpoint", newFec.dest); // ??? always use newFec.dest ???
-
+        
         newFec.sender.Lsp_Id = getParameterIntValue(fec, "lspid");
         newFec.sender.SrcAddress = routerId;
-
+        
         newFec.inLabel = rsvp->getInLabel(newFec.session, newFec.sender);
-
+        
+        if (it == bindings.end()) {
+            // create new binding
+            bindings.push_back(newFec);
+        }
+        else {
+            // update existing binding
+            *it = newFec;
+        }
+    }
+    else if (fec->getChildrenByTagName("weightedLabel").size() > 0)
+    {
+        checkTags(fec, "id weightedLabel destination source");
+        
+        EV_INFO << "binding to given weighted labels" << endl;
+        
+        FecEntry newFec;
+        
+        newFec.id = fecid;
+        newFec.dest = getParameterIPAddressValue(fec, "destination");
+        newFec.src = getParameterIPAddressValue(fec, "source", Ipv4Address());
+        
+        for (cXMLElement* weightedLabel: fec->getChildrenByTagName("weightedLabel"))
+        {
+            int label = getParameterIntValue(weightedLabel, "label");
+            int weight = getParameterIntValue(weightedLabel, "weight");
+            newFec.weightedInLabels.push_back(std::make_pair(label, weight));
+            newFec.totalWeight += weight;
+            std::cout << "newFec.weightedInLabels.size(): " << newFec.weightedInLabels.size() << std::endl;
+        }
+        
         if (it == bindings.end()) {
             // create new binding
             bindings.push_back(newFec);
@@ -295,7 +341,7 @@ void RsvpClassifier::readItemFromXML(const cXMLElement *fec)
     else {
         // un-bind
         checkTags(fec, "id");
-
+        
         if (it != bindings.end()) {
             bindings.erase(it);
         }
@@ -324,4 +370,3 @@ std::ostream& operator<<(std::ostream& os, const RsvpClassifier::FecEntry& fec)
 }
 
 } // namespace inet
-

@@ -28,54 +28,57 @@ class RsvpTe;
  */
 class INET_API RsvpClassifier : public cSimpleModule, public IScriptable, public IRsvpClassifier
 {
-  public:
-    struct FecEntry {
-        int id;
+public:
+struct FecEntry {
+    int id;
+    
+    Ipv4Address src;
+    Ipv4Address dest;
+    
+    SessionObj session;
+    SenderTemplateObj sender;
+    
+    int inLabel = 0;
+    // <int label, int weight>
+    std::vector<std::pair<int,int>> weightedInLabels;
+    
+    int totalWeight = 0;
+};
 
-        Ipv4Address src;
-        Ipv4Address dest;
+protected:
+Ipv4Address routerId;
+int maxLabel = 0;
 
-        SessionObj session;
-        SenderTemplateObj sender;
+std::vector<FecEntry> bindings;
+ModuleRefByPar<LibTable> lt;
+ModuleRefByPar<RsvpTe> rsvp;
 
-        int inLabel;
-    };
+public:
+RsvpClassifier() {}
 
-  protected:
-    Ipv4Address routerId;
-    int maxLabel = 0;
+protected:
+virtual void initialize(int stage) override;
+virtual int numInitStages() const override { return NUM_INIT_STAGES; }
+virtual void handleMessage(cMessage *msg) override;
 
-    std::vector<FecEntry> bindings;
-    ModuleRefByPar<LibTable> lt;
-    ModuleRefByPar<RsvpTe> rsvp;
+// IScriptable implementation
+virtual void processCommand(const cXMLElement& node) override;
 
-  public:
-    RsvpClassifier() {}
+// IRsvpClassifier implementation
+virtual bool lookupLabel(Packet *ipdatagram, LabelOpVector& outLabel, std::string& outInterface, int& color) override;
+virtual void bind(const SessionObj& session, const SenderTemplateObj& sender, int inLabel) override;
 
-  protected:
-    virtual void initialize(int stage) override;
-    virtual int numInitStages() const override { return NUM_INIT_STAGES; }
-    virtual void handleMessage(cMessage *msg) override;
-
-    // IScriptable implementation
-    virtual void processCommand(const cXMLElement& node) override;
-
-    // IRsvpClassifier implementation
-    virtual bool lookupLabel(Packet *ipdatagram, LabelOpVector& outLabel, std::string& outInterface, int& color) override;
-    virtual void bind(const SessionObj& session, const SenderTemplateObj& sender, int inLabel) override;
-
-  protected:
-    virtual void readTableFromXML(const cXMLElement *fectable);
-    virtual void readItemFromXML(const cXMLElement *fec);
-    virtual void readItemFromXML(const cXMLElement *fec, int fecid);
-    std::vector<FecEntry>::iterator findFEC(int fecid);
+protected:
+virtual void readItemFromXML(const cXMLElement *fec);
+virtual void readItemFromXML(const cXMLElement *fec, int fecid);
+std::vector<FecEntry>::iterator findFEC(int fecid);
 
 
 public:
-        virtual void updateFecEntry(cXMLElement *updateElement);
+virtual void readTableFromXML(const cXMLElement *fectable);
+virtual void updateFecEntry(cXMLElement *updateElement);
 };
 
 } // namespace inet
 
 #endif
-
