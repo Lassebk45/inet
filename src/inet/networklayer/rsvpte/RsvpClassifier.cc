@@ -64,7 +64,6 @@ bool RsvpClassifier::lookupLabel(Packet *packet, LabelOpVector& outLabel, std::s
     }
     
     // forwarding decision for non-labeled datagrams
-    std::cout << "this->getParentModule()->getName(): " << this->getParentModule()->getName() << std::endl;
     for (auto& elem : bindings) {
         
         if (!elem.dest.isUnspecified() && !elem.dest.equals(ipv4Header->getDestAddress()))
@@ -72,8 +71,6 @@ bool RsvpClassifier::lookupLabel(Packet *packet, LabelOpVector& outLabel, std::s
         
         if (!elem.src.isUnspecified() && !elem.src.equals(ipv4Header->getSrcAddress()))
             continue;
-        std::cout << "elem.weightedInLabels.size(): " << elem.weightedInLabels.size() << std::endl;
-        std::cout << "elem.id: " << elem.id << std::endl;
         
         EV_DETAIL << "packet belongs to fecid=" << elem.id << endl;
         //if (elem.inLabel < 0)
@@ -326,7 +323,6 @@ void RsvpClassifier::readItemFromXML(const cXMLElement *fec)
             int weight = getParameterIntValue(weightedLabel, "weight");
             newFec.weightedInLabels.push_back(std::make_pair(label, weight));
             newFec.totalWeight += weight;
-            std::cout << "newFec.weightedInLabels.size(): " << newFec.weightedInLabels.size() << std::endl;
         }
         
         if (it == bindings.end()) {

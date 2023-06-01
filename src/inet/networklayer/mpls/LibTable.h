@@ -66,6 +66,7 @@ class INET_API LibTable : public cSimpleModule
     std::map<std::string, std::string> routerToPppGate;
     std::map<std::string, std::string> pppGateToRouter;
     std::map<std::string, double> routerToWeight;
+    std::map<std::string, double> routerToCapacity;
   protected:
     virtual void initialize(int stage) override;
     virtual int numInitStages() const override { return NUM_INIT_STAGES; }

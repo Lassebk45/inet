@@ -51,6 +51,7 @@ void LibTable::initialize(int stage)
                 if (dynamic_cast<cDatarateChannel *>(channel)) {
                     cDatarateChannel *datarateChannel = (cDatarateChannel *) channel;
                     double datarate = datarateChannel->getDatarate();
+                    routerToCapacity.insert({otherRouterName, datarate});
                     routerToWeight.insert({otherRouterName, datarate});
                 }
             }
@@ -59,6 +60,7 @@ void LibTable::initialize(int stage)
         routerToPppGate.insert({thisRouterName, "mlo0"});
         routerToPppGate.insert({"any", "any"});
         pppGateToRouter.insert({"mlo0", thisRouterName});
+        routerToCapacity.insert({thisRouterName, 1});
         routerToWeight.insert({thisRouterName, 1});
     }
     else if (stage == INITSTAGE_NETWORK_LAYER) {
@@ -122,11 +124,6 @@ void LibTable::handleMessage(cMessage * msg)
             
             installLibEntry(getParameterIntValue(element, "inLabel"), getParameterStrValue(element, "inInterface"), opsVector, getParameterStrValue(element, "outInterface"), 1, getParameterIntValue(element, "priority"));
         }
-        /*if (FILE *file = fopen(updatePath.c_str(), "r")) {
-            fclose(file);
-            updateTableFromXML(getEnvir()->getXMLDocument(updatePath.c_str()));
-            remove(updatePath.c_str());
-        }*/
         delete msg;
     }
 }
@@ -314,9 +311,19 @@ bool LibTable::resolveLabel(std::string inInterface, int inLabel,
         auto it = std::min_element(valid_entries.begin(), valid_entries.end(), [](const auto& e1, const auto& e2){
             return e1.priority < e2.priority;
         });
+        // If there are no valid entries
         if(it == valid_entries.end())
             return false;
-        else if (next(it) == valid_entries.end()){
+    
+        int min_priority = it->priority;
+        std::vector<ForwardingEntry> minimum_entries;
+        std::copy_if(valid_entries.begin(), valid_entries.end(), std::back_inserter(minimum_entries), [min_priority](const auto&e){
+            return e.priority == min_priority;
+        });
+    
+        it = minimum_entries.begin();
+        // If there is a single valid entry
+        if (next(it) == minimum_entries.end()){
             outLabel = it->outLabel;
             outInterface = it->outInterface;
     
@@ -324,6 +331,8 @@ bool LibTable::resolveLabel(std::string inInterface, int inLabel,
     
             return true;
         }
+        
+        const char* splittingProtocol = par("splittingProtocol");
         
         /*// Implementation of ECMP -- currently just a proof of concept.
         // NOTE: Very experimental code ...
@@ -334,35 +343,56 @@ bool LibTable::resolveLabel(std::string inInterface, int inLabel,
         });
         // Note: Not the best way to do it, just proof of concept ...
         it = minimum_entries.begin();
-        std::advance( it, std::rand() % minimum_entries.size() );
+        
         // END ECMP CODE*/
         
-        // Implementation of weighted cost multipath
-    
-        int min_priority = it->priority;
-        std::vector<ForwardingEntry> minimum_entries;
-        std::copy_if(valid_entries.begin(), valid_entries.end(), std::back_inserter(minimum_entries), [min_priority](const auto&e){
-           return e.priority == min_priority;
-        });
+        
+        // Dynamic weights
+        if (!strcmp(splittingProtocol, "dynamic")){
+            double sum = 0;
+            for (ForwardingEntry ent: minimum_entries){
+                std::string outRouter = pppGateToRouter.at(ent.outInterface);
+                sum += routerToWeight.at(outRouter);
+            }
+            // Roll a random number:
+            double stopPoint = std::rand() % int(sum);
+            double linkCapacity = routerToWeight.at(pppGateToRouter.at(it->outInterface));
+            stopPoint -= linkCapacity;
+            while(stopPoint > 0){
+                std::advance(it, 1);
+                linkCapacity = routerToWeight.at(pppGateToRouter.at(it->outInterface));
+                stopPoint -= linkCapacity;
+            }
+            outLabel = it->outLabel;
+            outInterface = it->outInterface;
+        }
+        else if (!strcmp(splittingProtocol, "ecmp")){
+            std::advance( it, std::rand() % minimum_entries.size() );
+            outLabel = it->outLabel;
+            outInterface = it->outInterface;
+        }
+        else if (!strcmp(splittingProtocol, "capacity")){
+            double sum = 0;
+            for (ForwardingEntry ent: minimum_entries){
+                std::string outRouter = pppGateToRouter.at(ent.outInterface);
+                sum += routerToCapacity.at(outRouter);
+            }
+            // Roll a random number:
+            double stopPoint = std::rand() % int(sum);
+            double linkCapacity = routerToCapacity.at(pppGateToRouter.at(it->outInterface));
+            stopPoint -= linkCapacity;
+            while(stopPoint > 0){
+                std::advance(it, 1);
+                linkCapacity = routerToCapacity.at(pppGateToRouter.at(it->outInterface));
+                stopPoint -= linkCapacity;
+            }
+            outLabel = it->outLabel;
+            outInterface = it->outInterface;
+        }
+        
         // Note: Not the best way to do it, just proof of concept ...
         // Get the weighed sum
-        double sum = 0;
-        for (ForwardingEntry ent: minimum_entries){
-            std::string outRouter = pppGateToRouter.at(ent.outInterface);
-            sum += routerToWeight.at(outRouter);
-        }
-        // Roll a random number:
-        double stopPoint = std::rand() % int(sum);
-        it = minimum_entries.begin();
-        double linkCapacity = routerToWeight.at(pppGateToRouter.at(it->outInterface));
-        stopPoint -= linkCapacity;
-        while(stopPoint > 0){
-            std::advance(it, 1);
-            linkCapacity = routerToWeight.at(pppGateToRouter.at(it->outInterface));
-            stopPoint -= linkCapacity;
-        }
-        outLabel = it->outLabel;
-        outInterface = it->outInterface;
+        
         EV_ERROR << "Using ("<<outLabel <<","<<outInterface<<")"<< endl;
 
         color = elem.color;
