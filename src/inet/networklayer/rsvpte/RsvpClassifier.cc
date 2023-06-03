@@ -78,14 +78,18 @@ bool RsvpClassifier::lookupLabel(Packet *packet, LabelOpVector& outLabel, std::s
         
         int inLabel;
         // get the label randomly
-        if (!elem.weightedInLabels.empty()){
-            double stopPoint = std::rand() % elem.totalWeight;
+        if (!elem.weightedInLabels.empty()) {
             auto it = elem.weightedInLabels.begin();
-            stopPoint -= it->second;
-            while(stopPoint > 0){
-                std::advance(it, 1);
+            if (elem.totalWeight > 0){
+                double stopPoint = std::rand() % elem.totalWeight;
                 stopPoint -= it->second;
+                while (stopPoint > 0) {
+                    std::advance(it, 1);
+                    stopPoint -= it->second;
+                }
             }
+            else
+                std::advance(it, std::rand() % elem.weightedInLabels.size());
             inLabel = it->first;
         }
         else

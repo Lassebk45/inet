@@ -109,9 +109,11 @@ void MeasureWriter::writeMeasures()
     std::ofstream o(utilizationPath);
     o << std::setw(4) << linkUtilizations << std::endl;
     o.close();
+    std::cout << "Wrote link utilization" << std::endl;
     std::ofstream oo(demandPath);
     oo << std::setw(4) << demands << std::endl;
     oo.close();
+    std::cout << "Wrote demands" << std::endl;
     
     std::ostringstream outString;
     outString << "[";
@@ -123,6 +125,7 @@ void MeasureWriter::writeMeasures()
     std::ofstream ooo(linkFailuresPath);
     ooo << outString.str();
     ooo.close();
+    std::cout << "Wrote down links" << std::endl;
 }
 
 std::string labelOpCodeToString(LabelOpCode code)
