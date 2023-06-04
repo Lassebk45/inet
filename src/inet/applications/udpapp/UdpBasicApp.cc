@@ -196,7 +196,16 @@ void UdpBasicApp::processSend()
         d = par("sendInterval");
     else
         d = computeNextSendInterval();
-        
+    if (SIMTIME_DBL(d) == 0){
+        const char* source = getParentModule()->gate("pppg$o", 0)->getNextGate()->getOwnerModule()->getFullName();
+        std::vector<std::string> targetRouters;
+        for (std::string tgtAdress : getDestAddressStr())
+        {
+            std::string tgtRouter = getModuleByPath(tgtAdress.c_str())->gate("pppg$o", 0)->getNextGate()->getOwnerModule()->getFullName();
+            targetRouters.push_back(tgtRouter);
+        }
+        std::cout << "Sendinterval is 0 from" << source << "to" << targetRouters[0] << std::endl;
+    }
     if (stopTime < CLOCKTIME_ZERO || getClockTime() + d < stopTime){
         selfMsg->setKind(SEND);
         scheduleClockEventAfter(d, selfMsg);
