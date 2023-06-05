@@ -334,19 +334,6 @@ bool LibTable::resolveLabel(std::string inInterface, int inLabel,
         
         const char* splittingProtocol = par("splittingProtocol");
         
-        /*// Implementation of ECMP -- currently just a proof of concept.
-        // NOTE: Very experimental code ...
-        int min_priority = it->priority;
-        std::vector<ForwardingEntry> minimum_entries;
-        std::copy_if(valid_entries.begin(), valid_entries.end(), std::back_inserter(minimum_entries), [min_priority](const auto&e){
-           return e.priority == min_priority;
-        });
-        // Note: Not the best way to do it, just proof of concept ...
-        it = minimum_entries.begin();
-        
-        // END ECMP CODE*/
-        
-        
         // Dynamic weights
         if (!strcmp(splittingProtocol, "dynamic")){
             double sum = 0;
@@ -354,15 +341,19 @@ bool LibTable::resolveLabel(std::string inInterface, int inLabel,
                 std::string outRouter = pppGateToRouter.at(ent.outInterface);
                 sum += routerToWeight.at(outRouter);
             }
-            // Roll a random number:
-            double stopPoint = std::rand() % int(sum);
-            double linkCapacity = routerToWeight.at(pppGateToRouter.at(it->outInterface));
-            stopPoint -= linkCapacity;
-            while(stopPoint > 0){
-                std::advance(it, 1);
-                linkCapacity = routerToWeight.at(pppGateToRouter.at(it->outInterface));
+            if (sum > 0){
+                double stopPoint = std::rand() % int(sum);
+                double linkCapacity = routerToWeight.at(pppGateToRouter.at(it->outInterface));
                 stopPoint -= linkCapacity;
+                while(stopPoint > 0){
+                    std::advance(it, 1);
+                    linkCapacity = routerToWeight.at(pppGateToRouter.at(it->outInterface));
+                    stopPoint -= linkCapacity;
+                }
             }
+            else // If the sum of weight is zero choose a random entry
+                std::advance( it, std::rand() % minimum_entries.size() );
+            
             outLabel = it->outLabel;
             outInterface = it->outInterface;
         }
