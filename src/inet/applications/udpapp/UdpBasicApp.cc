@@ -178,7 +178,13 @@ void UdpBasicApp::processStart()
 
     if (!destAddresses.empty()) {
         selfMsg->setKind(SEND);
-        processSend();
+        if (!dynamicSendIntervals)
+            processSend();
+        else{
+            scheduleClockEventAt(sendIntervalStartTimes[0], selfMsg);
+        }
+            
+            
     }
     else {
         if (stopTime >= CLOCKTIME_ZERO) {
@@ -204,7 +210,6 @@ void UdpBasicApp::processSend()
             std::string tgtRouter = getModuleByPath(tgtAdress.c_str())->gate("pppg$o", 0)->getNextGate()->getOwnerModule()->getFullName();
             targetRouters.push_back(tgtRouter);
         }
-        std::cout << "Sendinterval is 0 from" << source << "to" << targetRouters[0] << std::endl;
     }
     if (stopTime < CLOCKTIME_ZERO || getClockTime() + d < stopTime){
         selfMsg->setKind(SEND);
@@ -333,7 +338,7 @@ clocktime_t UdpBasicApp::computeNextSendInterval()
         sendIntervalIndex += 1;
         return nextStartTime - currentTime.dbl();
     }
-        
+    
     return nextSendInterval;
 }
 
