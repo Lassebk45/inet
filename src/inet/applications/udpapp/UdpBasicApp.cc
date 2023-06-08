@@ -181,7 +181,8 @@ void UdpBasicApp::processStart()
         if (!dynamicSendIntervals)
             processSend();
         else{
-            scheduleClockEventAt(sendIntervalStartTimes[0], selfMsg);
+            double firstSendTime = sendIntervalStartTimes[0] < simTime().dbl() ? simTime().dbl() : sendIntervalStartTimes[0];
+            scheduleClockEventAt(firstSendTime, selfMsg);
         }
             
             
