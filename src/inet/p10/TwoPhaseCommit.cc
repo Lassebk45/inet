@@ -4,13 +4,15 @@
 
 #include "inet/p10/TwoPhaseCommit.h"
 #include "inet/common/XMLUtils.h"
-    #include "inet/networklayer/mpls/LibTable.h"
+#include "inet/networklayer/mpls/LibTable.h"
 #include "inet/networklayer/rsvpte/RsvpClassifier.h"
 #include "inet/networklayer/rsvpte/RsvpTe.h"
 #include "inet/networklayer/configurator/ipv4/Ipv4NetworkConfigurator.h"
 #include "inet/p10/TwoPhaseCommitMsg_m.h"
 #include "inet/linklayer/ppp/Ppp.h"
 #include <ctime>
+#include <iostream>
+#include <fstream>
 
 namespace inet {
 
@@ -19,10 +21,14 @@ Define_Module(TwoPhaseCommit);
 
 void TwoPhaseCommit::initialize(){
     updatePath = par("updatePath");
+    updateTimePath = par("updateTimePath");
     nextUpdateTime = par("updateInterval");
+    updateInterval = par("updateInterval");
     updateTrigger = new cMessage();
-    secondPhaseMsg = new TwoPhaseCommitMsg();
-
+    firstPhaseMsg = new cMessage();
+    secondPhaseMsg = new cMessage();
+    //secondPhaseMsg = new TwoPhaseCommitMsg();
+    
     if (nextUpdateTime > SIMTIME_ZERO)
     {
         scheduleAt(nextUpdateTime, updateTrigger);
@@ -32,48 +38,48 @@ void TwoPhaseCommit::initialize(){
 void TwoPhaseCommit::handleMessage(cMessage* msg){
     if (msg == updateTrigger)
     {
-        getEnvir()->forgetXMLDocument(updatePath);
-        
-        FILE *file;
         // When the update file exists load the updates
         std::cout << "Waiting for 2-phase-commit file" << std::endl;
-        while (!(( access( updatePath, F_OK ) != -1 )))
+        while (!(( access( updatePath, F_OK ) != -1 )) or !(( access( updateTimePath, F_OK ) != -1 )))
         {
             sleep(1);
         }
-        
-        std::time_t beforeTime = std::time(nullptr);
         std::cout << "2-phase-commit file received" << std::endl;
-        const cXMLElement * updates = getEnvir()->getXMLDocument(updatePath);
-        firstPhase(updates);
-        cancelEvent(secondPhaseMsg);
+        double iterationTime;
+        {
+            std::ifstream fin(updateTimePath);
+            fin >> iterationTime;
+        }
+        getEnvir()->forgetXMLDocument(updatePath);
+        updates = getEnvir()->getXMLDocument(updatePath);
+        
+        simtime_t timeUntilFirstPhase = iterationTime < updateInterval ? SIMTIME_ZERO : iterationTime - updateInterval;
+        simtime_t timeUntilSecondPhase = timeUntilFirstPhase + updateInterval * 0.5;
+        simtime_t timeUntilNewUpdate = timeUntilFirstPhase + updateInterval;
+        
+        std::cout << "Routing generation time: " << iterationTime << std::endl;
+        std::cout << "Scheduling update in:" << timeUntilFirstPhase << " seconds" << std::endl;
+        
+        scheduleAfter(timeUntilFirstPhase, firstPhaseMsg);
+        scheduleAfter(timeUntilSecondPhase, secondPhaseMsg);
+        scheduleAfter(timeUntilNewUpdate, updateTrigger);
         //Ipv4NetworkConfigurator* ipv4NetworkConfigurator = (Ipv4NetworkConfigurator *) getModuleByPath("configurator");
         //simtime_t networkFlushTime = ipv4NetworkConfigurator->networkFlushTime(par("highestLatencyMS"));
         //secondPhaseMsg->setUpdateElement(updates);
         //scheduleAfter(networkFlushTime, secondPhaseMsg);
-        secondPhaseMsg->setUpdateElement(updates);
-        simtime_t updateInterval = par("updateInterval");
-        scheduleAfter(updateInterval * 0.9, secondPhaseMsg);
-        // Delete the update file so it is not implemented multiple times.
+        
+    }
+    else if (msg == firstPhaseMsg){
+        firstPhase();
         remove(updatePath);
-    
-        nextUpdateTime += par("updateInterval");
-        scheduleAt(nextUpdateTime, updateTrigger);
-        std::time_t afterTime = std::time(nullptr);
-        std::cout << "Time to install new paths:" << afterTime - beforeTime << std::endl;
     }
     else if (msg == secondPhaseMsg)
-    {
-        std::time_t beforeTime = std::time(nullptr);
-        secondPhase(secondPhaseMsg->getUpdateElement());
-        std::time_t afterTime = std::time(nullptr);
-        std::cout << "Time to remove old paths:" << afterTime - beforeTime << std::endl;
-    }
+        secondPhase();
 }
 
-void TwoPhaseCommit::firstPhase(const cXMLElement * updates)
+void TwoPhaseCommit::firstPhase()
 {
-    
+    std::cout << "Implementing first phase at time:" << simTime() << std::endl;
     using namespace xmlutils;
     ASSERT(updates);
     ASSERT(!strcmp(updates->getTagName(), "twoPhaseCommit"));
@@ -100,8 +106,9 @@ void TwoPhaseCommit::firstPhase(const cXMLElement * updates)
     }
 }
 
-void TwoPhaseCommit::secondPhase(const cXMLElement * updates)
+void TwoPhaseCommit::secondPhase()
 {
+    std::cout << "Implementing second phase at time:" << simTime() << std::endl;
     using namespace xmlutils;
     ASSERT(updates);
     ASSERT(!strcmp(updates->getTagName(), "twoPhaseCommit"));

@@ -6,56 +6,74 @@
 #include <chrono>
 #include <thread>
 #include <iostream>
+#include <fstream>
 
 namespace inet {
 
 Define_Module(DynamicWeights);
 
-void DynamicWeights::initialize(){
-    updatePath = par("initialPath");
-    nextUpdateTime = SIMTIME_ZERO;
-    
-    // Set the initial weights
-    scheduleAt(nextUpdateTime, &updateTrigger);
-}
-
-void DynamicWeights::handleMessage(cMessage* msg){
-    getEnvir()->forgetXMLDocument(updatePath);
-    
-    FILE *file;
-    // When the update file exists load the updates
-    std::cout << "Waiting for dynamic weights file..." << std::endl;
-    while (!(( access( updatePath, F_OK ) != -1 )))
-    {
-        std::this_thread::sleep_for(std::chrono::milliseconds(200));
-    }
-    std::cout << "Dynamic weights file received." << std::endl;
-    const cXMLElement * dynamicWeights = getEnvir()->getXMLDocument(updatePath);
+void DynamicWeights::initialize() {
+    // Load initial weights
+    updateTimePath = par("updateTimePath");
+    updateInterval = par("updateInterval");
     updatePath = par("updatePath");
     
-    applyNewWeights(dynamicWeights);
-    simtime_t updateInterval = par("updateInterval");
-    if (!initialWeights)
-        remove(updatePath);
-    else
-        initialWeights = false;
-    nextUpdateTime += par("updateInterval");
+    
+    nextUpdateTime = SIMTIME_ZERO;
+    scheduleAt(nextUpdateTime, &initialUpdateTrigger);
+    nextUpdateTime = updateInterval;
     scheduleAt(nextUpdateTime, &updateTrigger);
 }
 
-void DynamicWeights::applyNewWeights(const cXMLElement *dynamicWeights){
+void DynamicWeights::handleMessage(cMessage *msg) {
+    // When the update file exists load the updates
+    if (msg == &initialUpdateTrigger){
+        const char* initialPath = par("initialPath");
+        getEnvir()->forgetXMLDocument(initialPath);
+        dynamicWeights = getEnvir()->getXMLDocument(initialPath);
+        applyNewWeights();
+    }
+    else if (msg == &updateTrigger) {
+        std::cout << "Waiting for dynamic weights file..." << std::endl;
+        while (!((access(updatePath, F_OK) != -1)) or !((access(updateTimePath, F_OK) != -1))) {
+            std::this_thread::sleep_for(std::chrono::milliseconds(200));
+        }
+        std::cout << "Dynamic weights file received." << std::endl;
+        
+        double iterationTime;
+        {
+            std::ifstream fin(updateTimePath);
+            fin >> iterationTime;
+        }
+        getEnvir()->forgetXMLDocument(updatePath);
+        dynamicWeights = getEnvir()->getXMLDocument(updatePath);
+        simtime_t applyWeightsIn = iterationTime < updateInterval ? SIMTIME_ZERO : iterationTime - updateInterval;
+        
+        std::cout << "Weight generation time: " << iterationTime << std::endl;
+        std::cout << "Scheduling weight update in:" << applyWeightsIn << " seconds" << std::endl;
+        
+        scheduleAfter(applyWeightsIn, &applyWeightsMsg);
+    }
+    else if (msg == &applyWeightsMsg){
+        applyNewWeights();
+        remove(updatePath);
+    }
+    
+}
+
+void DynamicWeights::applyNewWeights() {
     
     using namespace xmlutils;
     ASSERT(dynamicWeights);
     
-    const char* topTag = dynamicWeights->getTagName();
-    if(!strcmp(topTag, "dynamicWeights")){
+    const char *topTag = dynamicWeights->getTagName();
+    if (!strcmp(topTag, "dynamicWeights")) {
         checkTags(dynamicWeights, "weight");
         
-        for(cXMLElement* weight : dynamicWeights->getChildrenByTagName("weight"))
-        {
+        for (cXMLElement *weight: dynamicWeights->getChildrenByTagName("weight")) {
             // get source libTable reference
-            LibTable* srcLibTable = (LibTable *)getModuleByPath(weight->getAttribute("src"))->getModuleByPath(".libTable");
+            LibTable *srcLibTable = (LibTable *) getModuleByPath(weight->getAttribute("src"))->getModuleByPath(
+                    ".libTable");
             std::string weightString = weight->getAttribute("weight");
             double weightDouble = stod(weightString);
             std::string destString = weight->getAttribute("tgt");
@@ -63,12 +81,11 @@ void DynamicWeights::applyNewWeights(const cXMLElement *dynamicWeights){
         }
         
         return;
-    }
-    else if (!strcmp(topTag, "fectables")){
-        for(cXMLElement* fecTable : dynamicWeights->getChildrenByTagName("fectable"))
-        {
+    } else if (!strcmp(topTag, "fectables")) {
+        for (cXMLElement *fecTable: dynamicWeights->getChildrenByTagName("fectable")) {
             // get source RsvpClassifier reference
-            RsvpClassifier* classifier = (RsvpClassifier *)getModuleByPath(fecTable->getAttribute("router"))->getModuleByPath(".classifier");
+            RsvpClassifier *classifier = (RsvpClassifier *) getModuleByPath(
+                    fecTable->getAttribute("router"))->getModuleByPath(".classifier");
             classifier->readTableFromXML(fecTable);
         }
         
