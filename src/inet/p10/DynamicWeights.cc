@@ -48,11 +48,12 @@ void DynamicWeights::handleMessage(cMessage *msg) {
         getEnvir()->forgetXMLDocument(updatePath);
         dynamicWeights = getEnvir()->getXMLDocument(updatePath);
         simtime_t applyWeightsIn = iterationTime < updateInterval ? SIMTIME_ZERO : iterationTime - updateInterval;
-        
+        simtime_t nextUpdateIn = applyWeightsIn + updateInterval;
         std::cout << "Weight generation time: " << iterationTime << std::endl;
         std::cout << "Scheduling weight update in:" << applyWeightsIn << " seconds" << std::endl;
         
         scheduleAfter(applyWeightsIn, &applyWeightsMsg);
+        scheduleAfter(nextUpdateIn, &updateTrigger);
     }
     else if (msg == &applyWeightsMsg){
         applyNewWeights();
@@ -62,7 +63,7 @@ void DynamicWeights::handleMessage(cMessage *msg) {
 }
 
 void DynamicWeights::applyNewWeights() {
-    
+    std::cout << "Implementing new weights at time: " << simTime() << std::endl;
     using namespace xmlutils;
     ASSERT(dynamicWeights);
     
