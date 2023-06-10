@@ -30,6 +30,7 @@ class INET_API Mpls : public cSimpleModule, public DefaultProtocolRegistrationLi
 {
   protected:
     simtime_t delay1;
+    simsignal_t blackhole;
 
     // no longer used, see comment in intialize
 //    std::vector<bool> labelIf;

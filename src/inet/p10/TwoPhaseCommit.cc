@@ -39,7 +39,7 @@ void TwoPhaseCommit::handleMessage(cMessage* msg){
     if (msg == updateTrigger)
     {
         // When the update file exists load the updates
-        std::cout << "Waiting for 2-phase-commit file" << std::endl;
+        std::cout << "Waiting for 2-phase-commit file at time: " << simTime() << std::endl;
         while (!(( access( updatePath, F_OK ) != -1 )) or !(( access( updateTimePath, F_OK ) != -1 )))
         {
             sleep(1);

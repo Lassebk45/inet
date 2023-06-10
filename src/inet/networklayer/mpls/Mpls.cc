@@ -32,6 +32,7 @@ void Mpls::initialize(int stage)
     cSimpleModule::initialize(stage);
 
     if (stage == INITSTAGE_LOCAL) {
+        blackhole = registerSignal("blackhole");
         // interfaceTable must be initialized
 
         lt.reference(this, "libTableModule", true);
@@ -254,7 +255,7 @@ void Mpls::processMplsPacketFromL2(Packet *packet)
     bool found = lt->resolveLabel(incomingInterfaceName, mplsHeader->getLabel(), outLabel, outInterface, color);
     if (!found) {
         EV_INFO << "discarding packet, incoming label not resolved" << endl;
-
+        emit(blackhole, 0);
         delete packet;
         return;
     }
