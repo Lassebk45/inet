@@ -54,7 +54,7 @@ void TwoPhaseCommit::handleMessage(cMessage* msg){
         updates = getEnvir()->getXMLDocument(updatePath);
         
         simtime_t timeUntilFirstPhase = iterationTime < updateInterval ? SIMTIME_ZERO : iterationTime - updateInterval;
-        simtime_t timeUntilSecondPhase = timeUntilFirstPhase + updateInterval * 0.5;
+        simtime_t timeUntilSecondPhase = timeUntilFirstPhase + updateInterval * 0.9;
         simtime_t timeUntilNewUpdate = timeUntilFirstPhase + updateInterval;
         
         std::cout << "Routing generation time: " << iterationTime << std::endl;
@@ -71,6 +71,7 @@ void TwoPhaseCommit::handleMessage(cMessage* msg){
     }
     else if (msg == firstPhaseMsg){
         firstPhase();
+        //getchar();
         remove(updatePath);
     }
     else if (msg == secondPhaseMsg)
