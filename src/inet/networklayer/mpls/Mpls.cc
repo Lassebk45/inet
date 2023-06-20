@@ -33,6 +33,7 @@ void Mpls::initialize(int stage)
 
     if (stage == INITSTAGE_LOCAL) {
         blackhole = registerSignal("blackhole");
+        hopsSignal = registerSignal("hops");
         // interfaceTable must be initialized
 
         lt.reference(this, "libTableModule", true);
@@ -91,7 +92,6 @@ void Mpls::processPacketFromL3(Packet *msg)
             msg->addPar("color") = ICMP_TRAFFIC;
     }
     // TODO end of temporary area
-
     labelAndForwardIpv4Datagram(msg);
 }
 
@@ -110,21 +110,20 @@ bool Mpls::tryLabelAndForwardIpv4Datagram(Packet *packet)
         EV_DEBUG << ROUTER_STR(packet) << "in if. No mapping exists for this packet, return false." << endl;
         return false;
     }
+    
     int outInterfaceId = CHK(ift->findInterfaceByName(outInterface.c_str()))->getInterfaceId();
     EV_DEBUG << ROUTER_STR(packet) << "not in if." << endl;
-
+    
     ASSERT(outLabel.size() > 0);
-
     doStackOps(packet, outLabel);
-
+    
     EV_INFO << "forwarding packet to " << outInterface << endl;
 
     packet->addPar("color") = color;
-
     packet->trim();
     packet->removeTagIfPresent<DispatchProtocolReq>();
     packet->addTagIfAbsent<InterfaceReq>()->setInterfaceId(outInterfaceId);
-
+    
     sendToL2(packet);
 
     return true;
@@ -144,7 +143,6 @@ void Mpls::labelAndForwardIpv4Datagram(Packet *ipdatagram)
     // do not use labelAndForwardIPv4Datagram for packets arriving to ingress!
 
     EV_INFO << "FEC not resolved, doing regular L3 routing" << endl;
-
     sendToL2(ipdatagram);
 }
 
@@ -179,7 +177,7 @@ void Mpls::doStackOps(Packet *packet, const LabelOpVector& outLabel)
     unsigned int n = outLabel.size();
 
     EV_INFO << "doStackOps: " << outLabel << endl;
-
+    
     for (unsigned int i = 0; i < n; i++) {
         switch (outLabel[i].optcode) {
             case PUSH_OPER: {
@@ -194,21 +192,23 @@ void Mpls::doStackOps(Packet *packet, const LabelOpVector& outLabel)
                 swapLabel(packet, mplsHeader);
                 break;
             }
-            case POP_OPER:
+            case POP_OPER:{
                 popLabel(packet);
                 break;
+            }
+            
 
             default:
                 throw cRuntimeError("Unknown MPLS OptCode %d", outLabel[i].optcode);
                 break;
         }
     }
+    
 }
 
 void Mpls::processPacketFromL2(Packet *packet)
 {
     EV_DEBUG << ROUTER_STR(packet) << endl;
-
     int protocolId = packet->getTag<PacketProtocolTag>()->getProtocol()->getId();
     if (protocolId == Protocol::mpls.getId()) {
         processMplsPacketFromL2(packet);
@@ -216,7 +216,6 @@ void Mpls::processPacketFromL2(Packet *packet)
     else if (protocolId == Protocol::ipv4.getId()) {
         // Ipv4 datagram arrives at Ingress router. We'll try to classify it
         // and add an MPLS header
-
         if (!tryLabelAndForwardIpv4Datagram(packet)) {
             sendToL3(packet);
         }
@@ -234,9 +233,9 @@ void Mpls::processMplsPacketFromL2(Packet *packet)
     NetworkInterface *ie = ift->getInterfaceById(incomingInterfaceId);
     std::string incomingInterfaceName = ie->getInterfaceName();
     const auto& mplsHeader = packet->peekAtFront<MplsHeader>();
-
+    int hops = mplsHeader->getHops();
+    
     EV_DEBUG << ROUTER_STR(packet) << endl;
-
     EV_INFO << "Received " << packet << " from L2, label=" << mplsHeader->getLabel() << " inInterface=" << incomingInterfaceName << endl;
 
     if (mplsHeader->getLabel() == (uint32_t)-1) { // FIXME
@@ -261,8 +260,9 @@ void Mpls::processMplsPacketFromL2(Packet *packet)
     }
 
     NetworkInterface *outgoingInterface = CHK(ift->findInterfaceByName(outInterface.c_str()));
-
     doStackOps(packet, outLabel);
+    
+    
 
     if ((packet->getTag<PacketProtocolTag>()->getProtocol()->getId() == Protocol::mpls.getId())) {
         // forward labeled packet
@@ -276,14 +276,19 @@ void Mpls::processMplsPacketFromL2(Packet *packet)
         }
 
 //        ASSERT(labelIf[outgoingPort]);
+
         packet->removeTagIfPresent<DispatchProtocolReq>();
         packet->addTagIfAbsent<InterfaceReq>()->setInterfaceId(outgoingInterface->getInterfaceId());
         packet->trim();
+        
+        hops++;
+        auto mplsHeader2 = packet->removeAtFront<MplsHeader>();
+        mplsHeader2->setHops(hops);
+        packet->insertAtFront(mplsHeader2);
         sendToL2(packet);
     }
     else {
         // last label popped, decapsulate and send out Ipv4 datagram
-
         EV_INFO << "decapsulating Ipv4 datagram" << endl;
         ASSERT(packet->getTag<PacketProtocolTag>()->getProtocol()->getId() == Protocol::ipv4.getId());
 
@@ -291,6 +296,7 @@ void Mpls::processMplsPacketFromL2(Packet *packet)
             packet->trim();
             packet->removeTagIfPresent<DispatchProtocolReq>();
             packet->addTagIfAbsent<InterfaceReq>()->setInterfaceId(outgoingInterface->getInterfaceId());
+            emit(hopsSignal, hops);
             sendToL2(packet);
         }
         else {
@@ -307,7 +313,6 @@ void Mpls::sendToL2(Packet *msg)
 
     EV_DEBUG << ROUTER_STR(msg) << msg << endl;
     print_packet_tags(msg);
-
     send(msg, "lowerLayerOut");
 }
 

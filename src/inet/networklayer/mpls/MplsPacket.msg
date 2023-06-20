@@ -17,6 +17,7 @@ class MplsHeader extends FieldsChunk
     uint8_t tc;       // @bit(3)   Traffic Class field for QoS (quality of service) priority and ECN (Explicit Congestion Notification). Prior to 2009 this field was called EXP.
     bool s;         // @bit(1)   bottom of stack flag. If this is set, it signifies that the current label is the last in the stack.
     uint8_t ttl;      // @bit(8)   time to live
+    uint8_t hops = 1; // @bit(8)   total number of hops
 }
 
 cplusplus(MplsHeader) {{
